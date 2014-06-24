@@ -5,7 +5,7 @@ use Data::Dumper;
 package WWW::Spotify;
 
 
-# ABSTRACT: turns baubles into trinkets
+# ABSTRACT: Spotify Web API Wrapper
 
 use Moose;
 
@@ -655,6 +655,8 @@ WWW::Spotify
 
 Wrapper for the Spotify Web API.
 
+https://developer.spotify.com/web-api/
+
 Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
 very good and provides the exact path of the item within the JSON in the lower left
 of the screen as you mouse over an element.
@@ -732,4 +734,4 @@ JSON::Path is the underlying library that actually parses the JSON.
 
 Paul Lamere at The Echo Nest / Spotify
 
-All the great Perl community members that keep Perl fun after all these years
+All the great Perl community members that keep Perl fun
