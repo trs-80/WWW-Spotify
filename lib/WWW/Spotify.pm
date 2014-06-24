@@ -1,3 +1,4 @@
+
 use strict;
 use warnings;
 use Data::Dumper;
@@ -28,7 +29,13 @@ use IO::CaptureOutput qw( capture qxx qxy );
 has 'result_format' => (
     is       => 'rw',
     isa      => 'Str',
-    default  => 'json',
+    default  => 'json'
+);
+
+has 'grab_response_header' => (
+    is      => 'rw',
+    isa => 'Int',
+    default => 0
 );
 
 has 'results' => (
@@ -40,13 +47,13 @@ has 'results' => (
 has 'debug' => (
     is       => 'rw',
     isa      => 'Int',
-    default  => 0,
+    default  => 0
 );
 
 has 'uri_scheme' => (
     is       => 'rw',
     isa      => 'Str',
-    default  => 'https',
+    default  => 'https'
 );
 
 has uri_hostname => (
@@ -58,12 +65,12 @@ has uri_hostname => (
 has uri_domain_path => (
     is       => 'rw',
     isa      => 'Str',
-    default  => 'api',
+    default  => 'api'
 );
 
 has call_type => (
     is       => 'rw',
-    isa      => 'Str',
+    isa      => 'Str'
 );
 
 has auto_json_decode => (
@@ -142,14 +149,15 @@ my %api_call_options = (
             params => [ 'limit' , 'offset' , 'country' , 'album_type' ]
         },
         
-        '/v1/artists/{id}/top-tracks' => {
+        '/v1/artists/{id}/top-tracks?country={country}' => {
             info => "Get an artist's top tracks",
             type => 'GET',
             method => 'artist_top_tracks',
             params => [ 'country' ]
         },
 
-	'/v1/search' => {
+        # adding q and type to url unlike example since they are both required
+	'/v1/search?q={q}&type={type}' => {
             info => "Search for an item",
             type => 'GET',
             method => 'search',
@@ -220,7 +228,7 @@ foreach my $key (keys %api_call_options) {
     $method_to_uri{$api_call_options{$key}->{method}} = $key;
 }
 
-print Dumper(\%method_to_uri);
+# print Dumper(\%method_to_uri);
 
 sub is_valid_json {
     my ($self,$json,$caller) = @_;
@@ -271,12 +279,31 @@ sub send_get_request {
     
     my $path = $method_to_uri{$attributes->{method}};
     if ($path) {
+        
         warn "raw: $path" if $self->debug();
-        if ($path =~ m/\{id\}/ && exists $attributes->{params}{id}) {
+        
+        if ($path =~ /search/ && $attributes->{method} eq 'search') {
+            $path =~ s/\{q\}/$attributes->{q}/;
+            $path =~ s/\{type\}/$attributes->{type}/;
+        } elsif ($path =~ m/\{id\}/ && exists $attributes->{params}{id}) {
             $path =~ s/\{id\}/$attributes->{params}{id}/;   
         } elsif ($path =~ m/\{ids\}/ && exists $attributes->{params}{ids}) {
             $path =~ s/\{ids\}/$attributes->{params}{ids}/;
         }
+        
+        if ($path =~ m/\{country\}/) {
+            $path =~ s/\{country\}/$attributes->{params}{country}/;
+        }
+        
+        if ($path =~ m/\{user_id\}/ && exists $attributes->{params}{user_id}) {
+            $path =~ s/\{user_id\}/$attributes->{params}{user_id}/;   
+        }
+        
+        if ($path =~ m/\{playlist_id\}/ && exists $attributes->{params}{playlist_id}) {
+            $path =~ s/\{playlist_id\}/$attributes->{params}{playlist_id}/;   
+        }
+        
+        
         warn "modified: $path" if $self->debug();
     }
     
@@ -311,15 +338,13 @@ sub send_get_request {
     }
     
     warn "$url\n" if $self->debug;
-    $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = WWW::Mechanize->new( autocheck => 0 );
     $mech->get( $url );
     
-    #my $hd;
-    #capture { $mech->dump_headers(); } \$hd;
-
-    #$self->response_headers($hd);
-    $self->_set_response_headers($mech);
+    if ($self->grab_response_header() == 1) {
+        $self->_set_response_headers($mech);
+    }
     return $self->format_results($mech->content);
     
 }
@@ -366,6 +391,57 @@ sub format_results {
     return $content;
 }
 
+sub get {
+    
+    # This seemed like a simple enough method
+    # but everything I tried resulted in unacceptable
+    # trade offs and explict defining of the structures
+    # The new method, which I hope I remember when I
+    # revisit it, was to use JSON::Path
+    # It is an awesome module, but a little heavy
+    # on dependencies.  However I would not have been
+    # able to do this in so few lines without it
+    
+    # Making a generalization here
+    # if you use a * you are looking for an array
+    # if you don't have an * you want the first 1 (or should I say you get the first 1)
+   
+    my ($self,@return) = @_;
+    # my @return = @_;
+
+    my @out;
+    
+    my $result = decode_json $self->last_result(); 
+    
+    my $search_ref = $result;
+    
+    warn Dumper($result) if $self->debug();
+    
+    foreach my $key (@return) {
+        my $type = 'value';
+        if ($key =~ /\*\]/) {
+            $type = 'values';
+        }
+        
+        my $jpath = JSON::Path->new("\$.$key");
+        
+        my @t_arr = $jpath->$type($result);
+        
+        if ($type eq 'value') {
+            push @out , $t_arr[0];
+        } else {
+            push @out , \@t_arr;
+        }
+    }
+    if (wantarray) {
+        return @out;    
+    } else {
+        return $out[0];
+    }
+    
+
+}
+
 sub build_url_base {
     # first the uri type
     my $self = shift;
@@ -384,26 +460,16 @@ sub build_url_base {
         $url .= "/" . $self->uri_domain_path();
     }
  
- 
-=pod
-    # the version
-    if ( $self->uri_domain_path() ) {
-        $url .= "/" . $self->version();
-    }
-
-        # the path
-    if ( $call_type ) {
-        $url .= "/" . $call_type;
-    }
-=cut
-    # $url 
     return $url;
 }
+
+#-- spotify specific methods
 
 sub album {
     my $self = shift;
     my $id = shift;
-    $self->send_get_request(
+
+    return $self->send_get_request(
         { method => 'album',
           params => { 'id' => $id }
         }
@@ -413,127 +479,257 @@ sub album {
 sub albums {
     my $self = shift;
     my $ids = shift;
-    $self->send_get_request(
+
+    return $self->send_get_request(
         { method => 'albums',
           params => { 'ids' => $ids }
         }
     );
+
 }
 
 sub album_tracks {
     my $self = shift;
-    my $ablbum_id = shift;
-                   
+    my $album_id = shift;
+    my $extras    = shift;
+
+    return $self->send_get_request(
+        { method => 'album_tracks',
+          params => { 'id' => $album_id },
+          extras => $extras
+        }
+    );
+        
 }
-
-
 
 sub artist {
     my $self = shift;
     my $id = shift;
-    $self->send_get_request(
+    
+    return $self->send_get_request(
         { method => 'artist',
           params => { 'id' => $id }
         }
     );            
+
 }
 
 sub artists {
     my $self = shift;
     my $artists = shift;
-    $self->send_get_request(
+    
+    return $self->send_get_request(
         { method => 'artists',
           params => { 'ids' => $artists }
         }
     );
+
 }
 
 sub artist_albums {
     my $self = shift;
     my $artist_id = shift;
     my $extras = shift;
-    $self->send_get_request(
+    
+    return $self->send_get_request(
         { method => 'artist_albums',
           params => { 'id' => $artist_id },
           extras => $extras  
         }
-    ); 
+    );
+    
 }
 
 sub artist_top_tracks {
     my $self = shift;
     my $artist_id = shift;
-    my $extras = shift;
-    $self->send_get_request(
-        { method => 'artists',
-          params => { 'ids' => $artist_id },
-          extras => $extras  
+    my $country = shift;
+
+    return $self->send_get_request(
+        { method => 'artist_top_tracks',
+          params => { 'id' => $artist_id,
+                      'country' => $country
+                     }
         }
-    );    
+    );
+
 }
-
-
 
 sub me {
     my $self = shift;
-    
+    return;
 }
 
-sub next {
+sub next_result_set {
     my $self = shift;
     my $result = shift;
+    return;
 }
 
-sub previous {
+sub previous_result_set {
     my $self = shift;
     my $result = shift;
+    return;
 }
 
 sub search {
     my $self = shift;
-    my $attrib = shift;
-    
+    my $q    = shift;
+    my $type = shift;
+    my $extras = shift;
+
+    return $self->send_get_request(
+        { method => 'search',
+          q      => $q,
+          type   => $type,
+          extras => $extras
+          
+        }
+    );
+   
 }
 
 sub track {
     my $self = shift;
     my $id = shift;
-    $self->send_get_request(
+    return $self->send_get_request(
         { method => 'track',
           params => { 'id' => $id }
         }
     ); 
+
 }
 
 sub tracks {
     my $self = shift;
     my $tracks = shift;
-    $self->send_get_request(
+    
+    return $self->send_get_request(
         { method => 'tracks',
           params => { 'ids' => $tracks }
         }
     );
+    
 }
 
 sub user {
     my $self = shift;
+    my $user_id = shift;
+    return $self->send_get_request(
+        { method => 'user',
+          params => { 'user_id' => $user_id }
+        }
+    ); 
+
 }
 
 sub user_playlist {
     my $self = shift;
+    return;
 }
 
 sub user_playlist_add_tracks {
     my $self = shift;
+    return;
 }
 
 sub user_playlist_create {
     my $self = shift;
+    return;
 }
 
 sub user_playlists {
     my $self = shift;
+    return;
 }
 
-
 1;
+
+__END__
+
+=head1 NAME
+
+WWW::Spotify
+
+=head1 DESCRIPTION
+
+Wrapper for the Spotify Web API.
+
+Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
+very good and provides the exact path of the item within the JSON in the lower left
+of the screen as you mouse over an element.
+
+=head1 SYNOPSIS
+
+    use WWW::Spotify;
+ 
+    my $spotify = WWW::Spotify->new();
+    
+    my $spotify = WWW::Spotify->new();
+    
+    my $result;
+    
+    $result = $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
+    
+    # $result is a json structure, you can operate on it directly
+    # or you can use the "get" method see below
+    
+    $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
+    
+    $result = $spotify->album_tracks( '6akEvsycLGftJxYudPjmqK',
+    {
+        limit => 0,
+        offset => 1
+        
+    }
+    ); 
+    
+    $result = $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
+    
+    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
+    
+    $result = $spotify->artists( $artists_multiple );
+    
+    $result = $spotify->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
+                        { album_type => 'single',
+                          # country => 'US',
+                          limit   => 2,
+                          offset  => 0
+                        }  );
+    
+    $result = $spotify->track( '0eGsygTp906u18L0Oimnem' );
+    
+    $result = $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
+    
+    $result = $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
+                                            'SE' # country
+                                            );
+    
+    $result = $spotify->search(
+                        'tania bowra' ,
+                        'artist' ,
+                        { limit => 15 , offset => 0 }
+    );
+    
+    $result = $spotify->user( 'glennpmcdonald' );
+
+=head2 get
+
+Returns a specific item or array of items from the JSON result of the
+last action.
+ 
+    $result = $spotify->search(
+                        'tania bowra' ,
+                        'artist' ,
+                        { limit => 15 , offset => 0 }
+    );
+ 
+ my $image_url = $spotify->get( 'artists.items[0].images[0].url' );
+
+JSON::Path is the underlying library that actually parses the JSON.
+
+=head1 THANKS
+
+Paul Lamere at The Echo Nest / Spotify
+
+All the great Perl community members that keep Perl fun after all these years
