@@ -34,7 +34,7 @@ my $result;
 
 $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
 
-ok( $obj->is_valid_json($result) , "album" );
+ok( $obj->is_valid_json($result , 'album') , "album" );
 
 show_and_pause($result);
 
@@ -42,7 +42,7 @@ show_and_pause($result);
 
 $result = $obj->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
 
-ok( $obj->is_valid_json($result) , "albums (multiple ids)" );
+ok( $obj->is_valid_json($result , 'ablums') , "albums (multiple ids)" );
 
 show_and_pause($result);
 
@@ -56,7 +56,7 @@ $result = $obj->album_tracks( '6akEvsycLGftJxYudPjmqK',
 }
 ); 
 
-ok( $obj->is_valid_json($result) , "album_tracks" );
+ok( $obj->is_valid_json($result , 'album_tracks') , "album_tracks" );
 
 show_and_pause($result);
 
@@ -64,7 +64,7 @@ show_and_pause($result);
 
 $result = $obj->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
 
-ok( $obj->is_valid_json($result) , "artist" );
+ok( $obj->is_valid_json($result , 'artist') , "artist" );
 
 show_and_pause($result);
 
@@ -74,7 +74,7 @@ my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
 
 $result = $obj->artists( $artists_multiple );
 
-ok( $obj->is_valid_json($result) , "artists ( $artists_multiple )" );
+ok( $obj->is_valid_json($result , 'artists') , "artists ( $artists_multiple )" );
 
 show_and_pause($result);
 
@@ -86,7 +86,7 @@ $result = $obj->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
                       limit   => 2,
                       offset  => 0
                     }  );
-ok( $obj->is_valid_json($result) , "artist_albums" );
+ok( $obj->is_valid_json($result , 'artist_albums') , "artist_albums" );
 
 show_and_pause($result);
 
@@ -94,7 +94,7 @@ show_and_pause($result);
 
 $result = $obj->track( '0eGsygTp906u18L0Oimnem' );
 
-ok( $obj->is_valid_json($result) , "track returned valid json" );
+ok( $obj->is_valid_json($result , 'track') , "track returned valid json" );
 
 show_and_pause($result);
 
@@ -102,7 +102,7 @@ show_and_pause($result);
 
 $result = $obj->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
 
-ok( $obj->is_valid_json($result) , "tracks returned valid json" );
+ok( $obj->is_valid_json($result , 'tracks') , "tracks returned valid json" );
 
 show_and_pause($result);
                    
@@ -115,7 +115,7 @@ $result = $obj->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE'
 
 show_and_pause($result);
 
-ok( $obj->is_valid_json($result) , "artist_top_tracks call");
+ok( $obj->is_valid_json($result, 'artist_top_tracks') , "artist_top_tracks call");
 
 #------------------#
 
@@ -127,7 +127,7 @@ $result = $obj->search(
 
 show_and_pause($result);
 
-ok( $obj->is_valid_json($result) , "search call");
+ok( $obj->is_valid_json($result) , 'search');
 
 #------------------#
 
@@ -135,7 +135,7 @@ ok( $obj->is_valid_json($result) , "search call");
 # spotify:user:elainelin
 $result = $obj->user( 'glennpmcdonald' );
 
-ok( $obj->is_valid_json($result) , "user (glennpmcdonald)" );
+ok( $obj->is_valid_json($result , 'user') , "user (glennpmcdonald)" );
 
 show_and_pause($result);
 

@@ -10,7 +10,7 @@ package WWW::Spotify;
 use Moose;
 
 BEGIN {
-    $WWW::Spotify::VERSION = "0.001";
+    $WWW::Spotify::VERSION = "0.002";
 }
 
 use Data::Dumper;
@@ -24,6 +24,7 @@ use HTTP::Headers;
 use Scalar::Util;
 use File::Basename;
 use IO::CaptureOutput qw( capture qxx qxy );
+#use LWP::Authen::OAuth2;
 #use Digest::MD5::File qw( file_md5_hex url_md5_hex );
 
 has 'result_format' => (
@@ -232,16 +233,25 @@ foreach my $key (keys %api_call_options) {
 
 sub is_valid_json {
     my ($self,$json,$caller) = @_;
+    $caller ||= 'undefined method';
     eval {
         decode_json $json;    
     };
     
     if ($@) {
-        $self->last_error("invalid josn passed into $caller");
+        $self->last_error("invalid json passed into '$caller'");
         return 0;
     } else {
         return 1;
     }
+}
+
+sub send_post_request {
+    my $self = shift;
+    my $attributes = shift;
+    
+    # we will need do some auth nere
+    
 }
 
 sub send_get_request {
@@ -667,15 +677,13 @@ of the screen as you mouse over an element.
  
     my $spotify = WWW::Spotify->new();
     
-    my $spotify = WWW::Spotify->new();
-    
     my $result;
     
     $result = $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
     
     # $result is a json structure, you can operate on it directly
     # or you can use the "get" method see below
-    
+
     $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
     
     $result = $spotify->album_tracks( '6akEvsycLGftJxYudPjmqK',
