@@ -717,12 +717,22 @@ sub albums {
     my $self = shift;
     my $ids = shift;
 
+    if (ref($ids) eq 'ARRAY') {
+        $ids = join_ids($ids);
+    }
+    
+    
     return $self->send_get_request(
         { method => 'albums',
           params => { 'ids' => $ids }
         }
     );
 
+}
+
+sub join_ids {
+    my $array = shift;
+    return join(',',@$array);
 }
 
 sub albums_tracks {
@@ -754,6 +764,10 @@ sub artist {
 sub artists {
     my $self = shift;
     my $artists = shift;
+    
+    if (ref($artists) eq 'ARRAY') {
+        $artists = join_ids($artists);
+    }    
     
     return $self->send_get_request(
         { method => 'artists',
@@ -891,6 +905,10 @@ sub tracks {
     my $self = shift;
     my $tracks = shift;
     
+    if (ref($tracks) eq 'ARRAY') {
+        $tracks = join_ids($tracks);
+    }    
+    
     return $self->send_get_request(
         { method => 'tracks',
           params => { 'ids' => $tracks }
@@ -965,7 +983,7 @@ of the screen as you mouse over an element.
     
     $result = $spotify->albums_tracks( '6akEvsycLGftJxYudPjmqK',
     {
-        limit => 0,
+        limit => 1,
         offset => 1
         
     }
@@ -1021,19 +1039,39 @@ JSON::Path is the underlying library that actually parses the JSON.
 
 equivalent to /v1/albums/{id}
 
+    $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
+
 used album vs alubms since it is a singlar request
 
 =head2 albums
 
 equivalent to /v1/albums?ids={ids} 
 
+    $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
+
+or
+
+    $spotify->albums( [ '41MnTivkwTO3UUJ8DrqEJJ',
+                        '6JWc4iAiJ9FjyK0B59ABb4',
+                        '6UXCm6bOO4gFlDQZV5yL37' ] );
+
 =head2 albums_tracks
 
 equivalent to /v1/albums/{id}/tracks
 
+    $spotify->albums_tracks('6akEvsycLGftJxYudPjmqK',
+    {
+        limit => 1,
+        offset => 1
+        
+    }
+    );
+
 =head2 artist
 
 equivalent to /v1/artists/{id}
+
+    $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
 
 used artist vs artists since it is a singlar request and avoid collision with "artists" method
 
@@ -1041,33 +1079,62 @@ used artist vs artists since it is a singlar request and avoid collision with "a
 
 equivalent to /v1/artists?ids={ids} 
 
+    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
+    
+    $spotify->artists( $artists_multiple );
+
 =head2 artist_albums
 
 equivalent to /v1/artists/{id}/albums
+
+    $spotify->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
+                        { album_type => 'single',
+                          # country => 'US',
+                          limit   => 2,
+                          offset  => 0
+                        }  );
 
 =head2 artist_top_tracks
 
 equivalent to /v1/artists/{id}/top-tracks
 
+    $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
+                                 'SE' # country
+                                            );
+
 =head2 artist_related_artists
 
 equivalent to /v1/artists/{id}/related-artists
+
+    $spotify->artist_related_artists( '43ZHCT0cAZBISjO8DG9PnE' );
 
 =head2 search
 
 equivalent to /v1/search?type=album (etc)
 
+    $spotify->search(
+                        'tania bowra' ,
+                        'artist' ,
+                        { limit => 15 , offset => 0 }
+    );
+
 =head2 track
 
-equivalent to /v1/tracks/{id} 
+equivalent to /v1/tracks/{id}
+
+    $spotify->track( '0eGsygTp906u18L0Oimnem' );
 
 =head2 tracks
 
-equivalent to /v1/tracks?ids={ids} 
+equivalent to /v1/tracks?ids={ids}
+
+    $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
 
 =head2 browse_featured_playlists
 
 equivalent to /v1/browse/featured-playlists
+
+    $spotify->browse_featured_playlists();
 
 requires OAuth
 
@@ -1076,6 +1143,8 @@ requires OAuth
 equivalent to /v1/browse/new-releases
 
 requires OAuth
+
+    $spotify->browse_new_releases
 
 =head2 user
 
