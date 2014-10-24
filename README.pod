@@ -1,0 +1,170 @@
+=head1 NAME
+
+WWW::Spotify
+
+=head1 DESCRIPTION
+
+Wrapper for the Spotify Web API.
+
+https://developer.spotify.com/web-api/
+
+Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
+very good and provides the exact path of the item within the JSON in the lower left
+of the screen as you mouse over an element.
+
+=head1 SYNOPSIS
+
+    use WWW::Spotify;
+ 
+    my $spotify = WWW::Spotify->new();
+    
+    my $result;
+    
+    $result = $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
+    
+    # $result is a json structure, you can operate on it directly
+    # or you can use the "get" method see below
+
+    $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
+    
+    $result = $spotify->albums_tracks( '6akEvsycLGftJxYudPjmqK',
+    {
+        limit => 0,
+        offset => 1
+        
+    }
+    ); 
+    
+    $result = $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
+    
+    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
+    
+    $result = $spotify->artists( $artists_multiple );
+    
+    $result = $spotify->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
+                        { album_type => 'single',
+                          # country => 'US',
+                          limit   => 2,
+                          offset  => 0
+                        }  );
+    
+    $result = $spotify->track( '0eGsygTp906u18L0Oimnem' );
+    
+    $result = $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
+    
+    $result = $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
+                                            'SE' # country
+                                            );
+    
+    $result = $spotify->search(
+                        'tania bowra' ,
+                        'artist' ,
+                        { limit => 15 , offset => 0 }
+    );
+    
+    $result = $spotify->user( 'glennpmcdonald' );
+
+=head1 METHODS
+
+=head2 get
+
+Returns a specific item or array of items from the JSON result of the
+last action.
+ 
+    $result = $spotify->search(
+                        'tania bowra' ,
+                        'artist' ,
+                        { limit => 15 , offset => 0 }
+    );
+ 
+ my $image_url = $spotify->get( 'artists.items[0].images[0].url' );
+
+JSON::Path is the underlying library that actually parses the JSON.
+
+=head2 album
+
+equivalent to /v1/albums/{id}
+
+used album vs alubms since it is a singlar request
+
+=head2 albums
+
+equivalent to /v1/albums?ids={ids} 
+
+=head2 albums_tracks
+
+equivalent to /v1/albums/{id}/tracks
+
+=head2 artist
+
+equivalent to /v1/artists/{id}
+
+used artist vs artists since it is a singlar request and avoid collision with "artists" method
+
+=head2 artists
+
+equivalent to /v1/artists?ids={ids} 
+
+=head2 artist_albums
+
+equivalent to /v1/artists/{id}/albums
+
+=head2 artist_top_tracks
+
+equivalent to /v1/artists/{id}/top-tracks
+
+=head2 artist_related_artists
+
+equivalent to /v1/artists/{id}/related-artists
+
+=head2 search
+
+equivalent to /v1/search?type=album (etc)
+
+=head2 track
+
+equivalent to /v1/tracks/{id} 
+
+=head2 tracks
+
+equivalent to /v1/tracks?ids={ids} 
+
+=head2 browse_featured_playlists
+
+equivalent to /v1/browse/featured-playlists
+
+requires OAuth
+
+=head2 browse_new_releases
+
+equivalent to /v1/browse/new-releases
+
+requires OAuth
+
+=head2 user
+
+equivalent to /user
+
+=head2 oauth_client_id
+
+needed for requests that require OAuth, see Spotify API documentation for more information
+
+    $spotify->oauth_client_id('2xfjijkcjidjkfdi');
+
+Can also be set via environment variable, SPOTIFY_CLIENT_ID
+
+=head2 oauth_client_secret
+
+needed for requests that require OAuth, see Spotify API documentation for more information
+
+    $spotify->oauth_client_secret('2xfjijkcjidjkfdi');
+
+Can also be set via environment variable, SPOTIFY_CLIENT_SECRET
+
+=head1 THANKS
+
+
+
+Paul Lamere at The Echo Nest / Spotify
+
+All the great Perl community members that keep Perl fun
