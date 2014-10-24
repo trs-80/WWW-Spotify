@@ -75,6 +75,16 @@ if ($have_internet) {
     show_and_pause($result);
     
     #------------------#
+
+    $result = $obj->albums( [ '41MnTivkwTO3UUJ8DrqEJJ',
+                        '6JWc4iAiJ9FjyK0B59ABb4',
+                        '6UXCm6bOO4gFlDQZV5yL37' ] );
+    
+    ok( $obj->is_valid_json($result , 'ablums') , "albums (multiple ids) as array ref" );
+    
+    show_and_pause($result);
+    
+    #------------------#
     
     $result = $obj->albums_tracks( '6akEvsycLGftJxYudPjmqK',
     {
