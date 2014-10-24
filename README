@@ -5,6 +5,6 @@ Perl wrapper for Spotify Web API
 
 Alpha code at present but basic calls are working
 
-- any call requiring auth is not working
+- any call requiring user authorization is not implemented at this time
 
-- See t/01-test.t for examples for now
+- See t/01-test.t and 02 for additional usage examples
