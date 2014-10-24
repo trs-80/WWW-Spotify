@@ -168,3 +168,16 @@ Can also be set via environment variable, SPOTIFY_CLIENT_SECRET
 Paul Lamere at The Echo Nest / Spotify
 
 All the great Perl community members that keep Perl fun
+
+=head1 AUTHOR
+
+Aaron Johnson <aaronjjohnson@gmail.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2014 by Aaron Johnson.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
