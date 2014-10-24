@@ -1,3 +1,10 @@
+0.003 - 23 October 2014
+ - Changed album_tracks to albums_tracks to better match actual API call
+ - Added browse_feature_playlist method
+ - Added browse_new_releases method
+ - Enhanced documentation
+ - Improved tests
+
 0.002 - 26 June 2014
  - Resolved issue with undefined item which caused tests to fail on some platforms
  - Minor changes to documention

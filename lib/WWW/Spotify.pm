@@ -10,7 +10,7 @@ package WWW::Spotify;
 use Moose;
 
 BEGIN {
-    $WWW::Spotify::VERSION = "0.002";
+    $WWW::Spotify::VERSION = "0.003";
 }
 
 use Data::Dumper;
@@ -24,8 +24,52 @@ use HTTP::Headers;
 use Scalar::Util;
 use File::Basename;
 use IO::CaptureOutput qw( capture qxx qxy );
+use MIME::Base64;
+
 #use LWP::Authen::OAuth2;
 #use Digest::MD5::File qw( file_md5_hex url_md5_hex );
+
+has 'oauth_authorize_url' => (
+    is => 'rw',
+    isa => 'Str',
+    default => 'https://accounts.spotify.com/authorize'
+);
+
+has 'oauth_token_url' => (
+    is => 'rw',
+    isa => 'Str',
+    default =>  'https://accounts.spotify.com/api/token'
+);
+
+has 'oauth_redirect_uri' => (
+    is => 'rw',
+    isa => 'Str',
+    default => 'http://www.spotify.com'
+);
+
+has 'oauth_client_id' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => $ENV{SPOTIFY_CLIENT_ID} || ''
+);
+
+has 'oauth_client_secret' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => $ENV{SPOTIFY_CLIENT_SECRET} || ''
+);
+
+has 'current_oath_code' => (
+    is => 'rw',
+    isa => 'Str',
+    default => ''
+);
+
+has 'current_access_token' => (
+    is => 'rw',
+    isa => 'Str',
+    default => ''
+);
 
 has 'result_format' => (
     is       => 'rw',
@@ -55,6 +99,12 @@ has 'uri_scheme' => (
     is       => 'rw',
     isa      => 'Str',
     default  => 'https'
+);
+
+has 'current_client_credentials' => (
+    is       => 'rw',
+    isa      => 'Str',
+    default  => ''
 );
 
 has uri_hostname => (
@@ -128,7 +178,7 @@ my %api_call_options = (
         '/v1/albums/{id}/tracks' => {
             info => "Get an album's tracks" ,
             type => 'GET',
-            method => 'album_tracks'
+            method => 'albums_tracks'
         },
 
         '/v1/artists/{id}' => {
@@ -157,6 +207,13 @@ my %api_call_options = (
             params => [ 'country' ]
         },
 
+        '/v1/artists/{id}/related-artists' => {
+            info => "Get an artist's top tracks",
+            type => 'GET',
+            method => 'artist_related_artists',
+            # params => [ 'country' ]
+        },        
+        
         # adding q and type to url unlike example since they are both required
 	'/v1/search?q={q}&type={type}' => {
             info => "Search for an item",
@@ -202,6 +259,18 @@ my %api_call_options = (
             method => ''
         },
 
+        '/v1/browse/featured-playlists' => {
+            info => "Get a list of featured playlists",
+            type => 'GET',
+            method => 'browse_featured_playlists'
+        },
+
+        '/v1/browse/new-releases' => {
+            info => "Get a list of new releases",
+            type => 'GET',
+            method => 'browse_new_releases'
+        },
+        
         '/v1/users/{user_id}/playlists/{playlist_id}/tracks' => {
             info => "Get a playlist's tracks",
             type => 'POST',
@@ -259,7 +328,7 @@ sub send_get_request {
     my $self = shift;
     
     my $attributes = shift;
-    
+        
     my $uri_params = '';
     
     if (defined $attributes->{extras} and ref $attributes->{extras} eq 'HASH') {
@@ -314,7 +383,7 @@ sub send_get_request {
         }
         
         
-        warn "modified: $path" if $self->debug();
+        warn "modified: $path\n" if $self->debug();
     }
     
     $url .= $path;
@@ -350,6 +419,16 @@ sub send_get_request {
     warn "$url\n" if $self->debug;
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = WWW::Mechanize->new( autocheck => 0 );
+    
+    if ($attributes->{client_auth_required}) {
+
+        if ($self->current_access_token() eq '') {
+            warn "Needed to get access token\n" if $self->debug();
+            $self->get_client_credentials();
+        }
+        $mech->add_header( 'Authorization' => 'Bearer ' . $self->current_access_token() );    
+    }
+    
     $mech->get( $url );
     
     if ($self->grab_response_header() == 1) {
@@ -399,6 +478,154 @@ sub format_results {
     # json or xml instead of a perl data structure
     
     return $content;
+}
+
+sub get_oauth_authorize {
+    
+    my $self = shift;
+    
+    if ($self->current_oath_code()) {
+        return $self->current_oauth_code();
+    }
+    
+    
+    my $grant_type = 'authorization_code';
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = WWW::Mechanize->new( autocheck => 0 );
+    my $client_and_secret = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $encoded = encode_base64( $client_and_secret );
+    my $url = $self->oauth_authorize_url();
+    
+    my @parts;
+    
+    $parts[0] = 'response_type=code';
+    $parts[1] = 'redirect_uri=' . $self->oauth_redirect_uri;
+    # $parts[2] = 'state=' ;
+    
+    my $params = join('&',@parts);
+    $url = $url . "?client_id=" . $self->oauth_client_id() . "&$params";
+    print $url , "\n";
+    $mech->get($url);
+    # print Dumper($mech);
+    return $mech->content();
+        
+}
+
+sub get_client_credentials {
+    
+    my $self = shift;
+    my $scope = shift;
+    
+    if ($self->current_access_token() ne '') {
+        return $self->current_access_token();
+    }
+    if ($self->oauth_client_id() eq '') {
+        die 'need to set the client oauth parameters\n';
+    }
+    
+    my $grant_type = 'client_credentials';
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = WWW::Mechanize->new( autocheck => 0 );
+    my $client_and_secret = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $encoded = encode_base64( $client_and_secret );
+    my $url = $self->oauth_token_url();
+    # $url .= "?grant_type=client_credentials";
+    # my $url = $self->oauth_authorize_url();
+                # grant_type=client_credentials   
+    my $extra = { grant_type => $grant_type
+                  #code => 'code',
+                  #redirect_uri => $self->oauth_redirect_uri
+                };
+    if ($scope) {
+        $extra->{scope} = $scope;
+    }
+    
+    chomp($encoded);
+    $encoded =~ s/\n//g;
+    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
+    
+    $mech->post( $url ,  [ $extra ] ); 
+    my $content = $mech->content();
+    
+    if ($content =~ /access_token/) {
+        warn "setting access token\n" if $self->debug();
+        
+        my $result = decode_json $content;
+        
+        if ($result->{'access_token'}) {        
+            $self->current_access_token($result->{'access_token'});
+        }
+    }
+}
+
+sub get_access_token {
+    # cheap oauth code for now
+    
+    my $self = shift;
+    my $grant_type = 'authorization_code';
+    my $scope = shift;
+    
+    my @scopes = (
+    'playlist-modify',
+    'playlist-modify-private',
+    'playlist-read-private',
+    'streaming',
+    'user-read-private',
+    'user-read-email'
+    );
+    
+    if ($scope) {
+        # make sure it is valid
+        my $good_scope = 0;
+        foreach my $s (@scopes) {
+            if ($scope eq $s) {
+                $good_scope = 1;
+                last;
+            }
+        }
+        if ($good_scope == 0) {
+            # clear the scope, it doesn't
+            # look valid
+            $scope = '';
+        }
+        
+    }
+    
+    $grant_type ||= 'authorization_code';
+    
+    # need to authorize first??
+    
+    
+    
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = WWW::Mechanize->new( autocheck => 0 );
+    my $client_and_secret = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    
+    print $client_and_secret , "\n";
+    print $grant_type , "\n";
+    my $encoded = encode_base64( $client_and_secret );
+    print $encoded , "\n";
+    
+    
+                                                                   
+    my $url = $self->oauth_token_url;
+    print $url , "\n";
+    my $extra = { grant_type => $grant_type,
+                  code => 'code',
+                  redirect_uri => $self->oauth_redirect_uri
+                };
+    if ($scope) {
+        $extra->{scope} = $scope;
+    }
+    
+    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
+    
+
+    
+    $mech->post( $url , [ $extra ] );
+    # print Dumper($mech);    
+    print $mech->content() , "\n";
+    
 }
 
 sub get {
@@ -498,13 +725,13 @@ sub albums {
 
 }
 
-sub album_tracks {
+sub albums_tracks {
     my $self = shift;
     my $album_id = shift;
     my $extras    = shift;
 
     return $self->send_get_request(
-        { method => 'album_tracks',
+        { method => 'albums_tracks',
           params => { 'id' => $album_id },
           extras => $extras
         }
@@ -565,6 +792,22 @@ sub artist_top_tracks {
 
 }
 
+sub artist_related_artists {
+    my $self = shift;
+    my $artist_id = shift;
+    my $country = shift;
+
+    return $self->send_get_request(
+        { method => 'artist_related_artists',
+          params => { 'id' => $artist_id
+                    }
+          #            'country' => $country
+          #          }
+        }
+    );
+
+}
+
 sub me {
     my $self = shift;
     return;
@@ -608,6 +851,40 @@ sub track {
         }
     ); 
 
+}
+
+sub browse_featured_playlists {
+    my $self = shift;
+    my $extras = shift;
+    
+    # locale
+    # country
+    # limit
+    # offset
+    
+    return $self->send_get_request(
+        { method => 'browse_featured_playlists',
+          extras => $extras,
+          client_auth_required => 1
+        }
+    ); 
+}
+
+sub browse_new_releases {
+    my $self = shift;
+    my $extras = shift;
+    
+    # locale
+    # country
+    # limit
+    # offset
+    
+    return $self->send_get_request(
+        { method => 'browse_new_releases',
+          extras => $extras,
+          client_auth_required => 1
+        }
+    ); 
 }
 
 sub tracks {
@@ -686,7 +963,7 @@ of the screen as you mouse over an element.
 
     $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
     
-    $result = $spotify->album_tracks( '6akEvsycLGftJxYudPjmqK',
+    $result = $spotify->albums_tracks( '6akEvsycLGftJxYudPjmqK',
     {
         limit => 0,
         offset => 1
@@ -723,6 +1000,8 @@ of the screen as you mouse over an element.
     
     $result = $spotify->user( 'glennpmcdonald' );
 
+=head1 METHODS
+
 =head2 get
 
 Returns a specific item or array of items from the JSON result of the
@@ -738,7 +1017,89 @@ last action.
 
 JSON::Path is the underlying library that actually parses the JSON.
 
+=head2 album
+
+equivalent to /v1/albums/{id}
+
+used album vs alubms since it is a singlar request
+
+=head2 albums
+
+equivalent to /v1/albums?ids={ids} 
+
+=head2 albums_tracks
+
+equivalent to /v1/albums/{id}/tracks
+
+=head2 artist
+
+equivalent to /v1/artists/{id}
+
+used artist vs artists since it is a singlar request and avoid collision with "artists" method
+
+=head2 artists
+
+equivalent to /v1/artists?ids={ids} 
+
+=head2 artist_albums
+
+equivalent to /v1/artists/{id}/albums
+
+=head2 artist_top_tracks
+
+equivalent to /v1/artists/{id}/top-tracks
+
+=head2 artist_related_artists
+
+equivalent to /v1/artists/{id}/related-artists
+
+=head2 search
+
+equivalent to /v1/search?type=album (etc)
+
+=head2 track
+
+equivalent to /v1/tracks/{id} 
+
+=head2 tracks
+
+equivalent to /v1/tracks?ids={ids} 
+
+=head2 browse_featured_playlists
+
+equivalent to /v1/browse/featured-playlists
+
+requires OAuth
+
+=head2 browse_new_releases
+
+equivalent to /v1/browse/new-releases
+
+requires OAuth
+
+=head2 user
+
+equivalent to /user
+
+=head2 oauth_client_id
+
+needed for requests that require OAuth, see Spotify API documentation for more information
+
+    $spotify->oauth_client_id('2xfjijkcjidjkfdi');
+
+Can also be set via environment variable, SPOTIFY_CLIENT_ID
+
+=head2 oauth_client_secret
+
+needed for requests that require OAuth, see Spotify API documentation for more information
+
+    $spotify->oauth_client_secret('2xfjijkcjidjkfdi');
+
+Can also be set via environment variable, SPOTIFY_CLIENT_SECRET
+
 =head1 THANKS
+
+
 
 Paul Lamere at The Echo Nest / Spotify
 
