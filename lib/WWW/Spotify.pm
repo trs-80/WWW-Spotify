@@ -10,7 +10,7 @@ package WWW::Spotify;
 use Moose;
 
 BEGIN {
-    $WWW::Spotify::VERSION = "0.003";
+    $WWW::Spotify::VERSION = "0.004";
 }
 
 use Data::Dumper;
@@ -347,47 +347,52 @@ sub send_get_request {
     }
     
     # my $url = $self->build_url_base($call_type);
+    my $url;
+    if ($attributes->{method} eq 'query_full_url') {
+	$url = $attributes->{url};
+    } else {
     
-    my $url = $self->uri_scheme();
+	$url = $self->uri_scheme();
     
-    # the ://
-    $url .= "://";
+	# the ://
+	$url .= "://";
     
-    # the domain
-    $url .= $self->uri_hostname();
+	# the domain
+	$url .= $self->uri_hostname();
     
-    my $path = $method_to_uri{$attributes->{method}};
-    if ($path) {
-        
-        warn "raw: $path" if $self->debug();
-        
-        if ($path =~ /search/ && $attributes->{method} eq 'search') {
-            $path =~ s/\{q\}/$attributes->{q}/;
-            $path =~ s/\{type\}/$attributes->{type}/;
-        } elsif ($path =~ m/\{id\}/ && exists $attributes->{params}{id}) {
-            $path =~ s/\{id\}/$attributes->{params}{id}/;   
-        } elsif ($path =~ m/\{ids\}/ && exists $attributes->{params}{ids}) {
-            $path =~ s/\{ids\}/$attributes->{params}{ids}/;
-        }
-        
-        if ($path =~ m/\{country\}/) {
-            $path =~ s/\{country\}/$attributes->{params}{country}/;
-        }
-        
-        if ($path =~ m/\{user_id\}/ && exists $attributes->{params}{user_id}) {
-            $path =~ s/\{user_id\}/$attributes->{params}{user_id}/;   
-        }
-        
-        if ($path =~ m/\{playlist_id\}/ && exists $attributes->{params}{playlist_id}) {
-            $path =~ s/\{playlist_id\}/$attributes->{params}{playlist_id}/;   
-        }
-        
-        
-        warn "modified: $path\n" if $self->debug();
+    
+	my $path = $method_to_uri{$attributes->{method}};
+	if ($path) {
+	    
+	    warn "raw: $path" if $self->debug();
+	    
+	    if ($path =~ /search/ && $attributes->{method} eq 'search') {
+		$path =~ s/\{q\}/$attributes->{q}/;
+		$path =~ s/\{type\}/$attributes->{type}/;
+	    } elsif ($path =~ m/\{id\}/ && exists $attributes->{params}{id}) {
+		$path =~ s/\{id\}/$attributes->{params}{id}/;   
+	    } elsif ($path =~ m/\{ids\}/ && exists $attributes->{params}{ids}) {
+		$path =~ s/\{ids\}/$attributes->{params}{ids}/;
+	    }
+	    
+	    if ($path =~ m/\{country\}/) {
+		$path =~ s/\{country\}/$attributes->{params}{country}/;
+	    }
+	    
+	    if ($path =~ m/\{user_id\}/ && exists $attributes->{params}{user_id}) {
+		$path =~ s/\{user_id\}/$attributes->{params}{user_id}/;   
+	    }
+	    
+	    if ($path =~ m/\{playlist_id\}/ && exists $attributes->{params}{playlist_id}) {
+		$path =~ s/\{playlist_id\}/$attributes->{params}{playlist_id}/;   
+	    }
+	    
+	    
+	    warn "modified: $path\n" if $self->debug();
+	}
+	
+	$url .= $path;
     }
-    
-    $url .= $path;
-    
     # now we need to address the "extra" attributes if any
     if ($uri_params) {
         my $start_with = '?';
@@ -396,26 +401,7 @@ sub send_get_request {
         }
         $url .= $start_with . $uri_params;
     }
-    
-    
-    my $need_auth = 0;
-    if ($need_auth) {
-        #code
-        # ensure we have a semi valid api key stashed away
-        if ($self->_have_valid_api_key() == 0) {
-            return "won't send requests without a valid api key";
-        }
-        # since it is a GET we can ? it
-        $url .= "?";
-    
-        # add the api key since it should always be sent
-        $url .= "api_key=" . $self->api_key();
-    
-        # add the format
-    
-        $url .= "&format=" . $self->result_format();
-    }
-    
+
     warn "$url\n" if $self->debug;
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = WWW::Mechanize->new( autocheck => 0 );
@@ -494,6 +480,8 @@ sub get_oauth_authorize {
     my $mech = WWW::Mechanize->new( autocheck => 0 );
     my $client_and_secret = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64( $client_and_secret );
+    chomp($encoded);
+    $encoded =~ s/\n//g;
     my $url = $self->oauth_authorize_url();
     
     my @parts;
@@ -504,7 +492,7 @@ sub get_oauth_authorize {
     
     my $params = join('&',@parts);
     $url = $url . "?client_id=" . $self->oauth_client_id() . "&$params";
-    print $url , "\n";
+    # print $url , "\n";
     $mech->get($url);
     # print Dumper($mech);
     return $mech->content();
@@ -698,6 +686,21 @@ sub build_url_base {
     }
  
     return $url;
+}
+
+#- may want to move this at some point
+
+sub query_full_url {
+    my $self = shift;
+    my $url  = shift;
+    my $client_auth_required = shift || 0;
+    return $self->send_get_request(
+	{
+	    method => 'query_full_url',
+	    url    => $url,
+	    client_auth_required => $client_auth_required
+	}
+    );
 }
 
 #-- spotify specific methods
@@ -1017,6 +1020,26 @@ of the screen as you mouse over an element.
     );
     
     $result = $spotify->user( 'glennpmcdonald' );
+    
+    # public play interaction example
+    # NEED TO SET YOUR o_auth client_id and secret for these to work
+    
+    $spotify->browse_featured_playlists( country => 'US' );
+    
+    my $link = $spotify->get('playlists.items[*].href');
+    
+    # $link is an arrayfef of the all the playlist urls
+    
+    foreach my $for_tracks (@{$link}) {
+        # make sure the links look valid
+        next if $for_tracks !~ /spotify\/play/;
+        $spotify->query_full_url($for_tracks,1);
+	my $pl_name = $spotify->get('name');
+	my $tracks  = $spotify->get('tracks.items[*].track.id');
+	foreach my $track (@{$tracks}) {
+            print "$track\n";
+        }
+    }
 
 =head1 METHODS
 
@@ -1034,6 +1057,13 @@ last action.
  my $image_url = $spotify->get( 'artists.items[0].images[0].url' );
 
 JSON::Path is the underlying library that actually parses the JSON.
+
+=head2 query_full_url( $url , [needs o_auth] )
+
+Results from some calls (playlist for example) return full urls that can be in their entirety. This method allows you
+make a call to that url and use all of the o_auth and other features provided.
+
+    $spotify->query_full_url( "https://api.spotify.com/v1/users/spotify/playlists/06U6mm6KPtPIg9D4YGNEnu" , 1 );
 
 =head2 album
 
