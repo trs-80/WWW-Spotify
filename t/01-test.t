@@ -1,30 +1,13 @@
 use strict;
 
 use Data::Dumper;
-
-use Test::More qw/no_plan/;
-
-use lib '..';
-
-BEGIN {
-    use_ok('WWW::Spotify');
-    use_ok('Net::Ping');    # need basic network connection to test module
-}
-
-my $p = Net::Ping->new('syn');
-
-# lets see if we can ping google
-my $host = 'www.google.com';
-
-my $have_internet = 0;
-
-if ( $p->ping($host) ) {
-
-    # warn "pinging\n";
-    $have_internet = 1;
-}
-
-$p->close();
+use Test::More;
+use Test::RequiresInternet (
+    'accounts.spotify.com' => 443,
+    'api.spotify.com'      => 443,
+    'www.spotify.com'      => 80,
+);
+use WWW::Spotify ();
 
 my $obj = WWW::Spotify->new();
 
@@ -44,166 +27,159 @@ sub show_and_pause {
     }
 }
 
-my $result;
+my $result = $obj->search(
+    'tania bowra',
+    'artist',
+    { limit => 15, offset => 0 }
+);
 
-if ($have_internet) {
+show_and_pause($result);
 
-    $result = $obj->search(
-        'tania bowra',
-        'artist',
-        { limit => 15, offset => 0 }
-    );
+ok( $obj->is_valid_json($result), 'search' );
 
-    show_and_pause($result);
+#------------------#
 
-    ok( $obj->is_valid_json($result), 'search' );
+$result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
 
-    #------------------#
+ok( $obj->is_valid_json( $result, 'album' ), "album" );
 
-    $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
+show_and_pause($result);
 
-    ok( $obj->is_valid_json( $result, 'album' ), "album" );
+#------------------#
 
-    show_and_pause($result);
+$result
+    = $obj->albums(
+    '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37');
 
-    #------------------#
+ok( $obj->is_valid_json( $result, 'ablums' ), "albums (multiple ids)" );
 
-    $result
-        = $obj->albums(
-        '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37'
-        );
+show_and_pause($result);
 
-    ok( $obj->is_valid_json( $result, 'ablums' ), "albums (multiple ids)" );
+#------------------#
 
-    show_and_pause($result);
+$result = $obj->albums(
+    [
+        '41MnTivkwTO3UUJ8DrqEJJ',
+        '6JWc4iAiJ9FjyK0B59ABb4',
+        '6UXCm6bOO4gFlDQZV5yL37'
+    ]
+);
 
-    #------------------#
+ok(
+    $obj->is_valid_json( $result, 'ablums' ),
+    "albums (multiple ids) as array ref"
+);
 
-    $result = $obj->albums(
-        [
-            '41MnTivkwTO3UUJ8DrqEJJ',
-            '6JWc4iAiJ9FjyK0B59ABb4',
-            '6UXCm6bOO4gFlDQZV5yL37'
-        ]
-    );
+show_and_pause($result);
 
-    ok(
-        $obj->is_valid_json( $result, 'ablums' ),
-        "albums (multiple ids) as array ref"
-    );
+#------------------#
 
-    show_and_pause($result);
+$result = $obj->albums_tracks(
+    '6akEvsycLGftJxYudPjmqK',
+    {
+        limit  => 5,
+        offset => 1
 
-    #------------------#
+    }
+);
 
-    $result = $obj->albums_tracks(
-        '6akEvsycLGftJxYudPjmqK',
-        {
-            limit  => 5,
-            offset => 1
+ok( $obj->is_valid_json( $result, 'albums_tracks' ), "albums_tracks" );
 
-        }
-    );
+show_and_pause($result);
 
-    ok( $obj->is_valid_json( $result, 'albums_tracks' ), "albums_tracks" );
+#------------------#
 
-    show_and_pause($result);
+$result = $obj->artist('0LcJLqbBmaGUft1e9Mm8HV');
 
-    #------------------#
+ok( $obj->is_valid_json( $result, 'artist' ), "artist" );
 
-    $result = $obj->artist('0LcJLqbBmaGUft1e9Mm8HV');
+show_and_pause($result);
 
-    ok( $obj->is_valid_json( $result, 'artist' ), "artist" );
+#------------------#
 
-    show_and_pause($result);
+my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
 
-    #------------------#
+$result = $obj->artists($artists_multiple);
 
-    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
+ok(
+    $obj->is_valid_json( $result, 'artists' ),
+    "artists ( $artists_multiple )"
+);
 
-    $result = $obj->artists($artists_multiple);
+show_and_pause($result);
 
-    ok(
-        $obj->is_valid_json( $result, 'artists' ),
-        "artists ( $artists_multiple )"
-    );
+#------------------#
 
-    show_and_pause($result);
+$result = $obj->artist_albums(
+    '1vCWHaC5f2uS3yhpwWbIA6',
+    {
+        album_type => 'single',
 
-    #------------------#
+        # country => 'US',
+        limit  => 2,
+        offset => 0
+    }
+);
+ok( $obj->is_valid_json( $result, 'artist_albums' ), "artist_albums" );
 
-    $result = $obj->artist_albums(
-        '1vCWHaC5f2uS3yhpwWbIA6',
-        {
-            album_type => 'single',
+show_and_pause($result);
 
-            # country => 'US',
-            limit  => 2,
-            offset => 0
-        }
-    );
-    ok( $obj->is_valid_json( $result, 'artist_albums' ), "artist_albums" );
+#------------------#
 
-    show_and_pause($result);
+$result = $obj->track('0eGsygTp906u18L0Oimnem');
 
-    #------------------#
+ok(
+    $obj->is_valid_json( $result, 'track' ),
+    "track returned valid json"
+);
 
-    $result = $obj->track('0eGsygTp906u18L0Oimnem');
+show_and_pause($result);
 
-    ok(
-        $obj->is_valid_json( $result, 'track' ),
-        "track returned valid json"
-    );
+#------------------#
 
-    show_and_pause($result);
+$result = $obj->tracks('0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G');
 
-    #------------------#
+ok(
+    $obj->is_valid_json( $result, 'tracks' ),
+    "tracks returned valid json"
+);
 
-    $result = $obj->tracks('0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G');
+show_and_pause($result);
 
-    ok(
-        $obj->is_valid_json( $result, 'tracks' ),
-        "tracks returned valid json"
-    );
+#------------------#
 
-    show_and_pause($result);
+$result = $obj->artist_top_tracks(
+    '43ZHCT0cAZBISjO8DG9PnE', 'SE'
 
-    #------------------#
+);
 
-    $result = $obj->artist_top_tracks(
-        '43ZHCT0cAZBISjO8DG9PnE', 'SE'
+show_and_pause($result);
 
-    );
+ok(
+    $obj->is_valid_json( $result, 'artist_top_tracks' ),
+    "artist_top_tracks call"
+);
 
-    show_and_pause($result);
+#------------------#
 
-    ok(
-        $obj->is_valid_json( $result, 'artist_top_tracks' ),
-        "artist_top_tracks call"
-    );
+$result = $obj->artist_related_artists('43ZHCT0cAZBISjO8DG9PnE');
 
-    #------------------#
+show_and_pause($result);
 
-    $result = $obj->artist_related_artists('43ZHCT0cAZBISjO8DG9PnE');
+ok(
+    $obj->is_valid_json( $result, 'artist_related_artists' ),
+    "artist_related_artists call"
+);
 
-    show_and_pause($result);
+#------------------#
 
-    ok(
-        $obj->is_valid_json( $result, 'artist_related_artists' ),
-        "artist_related_artists call"
-    );
+# need a test user?
+# spotify:user:elainelin
+$result = $obj->user('glennpmcdonald');
 
-    #------------------#
+ok( $obj->is_valid_json( $result, 'user' ), "user (glennpmcdonald)" );
 
-    # need a test user?
-    # spotify:user:elainelin
-    $result = $obj->user('glennpmcdonald');
-
-    ok( $obj->is_valid_json( $result, 'user' ), "user (glennpmcdonald)" );
-
-    show_and_pause($result);
-
-}
+show_and_pause($result);
 
 #------------------#
 
@@ -223,3 +199,5 @@ $result = $obj->user_playlists(  );
 =cut
 
 # test me
+
+done_testing();

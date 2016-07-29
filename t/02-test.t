@@ -2,14 +2,15 @@ use strict;
 
 use Data::Dumper;
 
-use Test::More qw/no_plan/;
-
-use lib '..';
-
-BEGIN {
-    use_ok('WWW::Spotify');
-    use_ok('Net::Ping');    # need basic network connection to test module
-}
+use Test::More $ENV{SPOTIFY_CLIENT_ID}
+    ? ()
+    : skip_all => 'No SPOTIFY_CLIENT_ID';
+use Test::RequiresInternet (
+    'accounts.spotify.com' => 443,
+    'api.spotify.com'      => 443,
+    'www.spotify.com'      => 80,
+);
+use WWW::Spotify;
 
 my $obj = WWW::Spotify->new();
 
@@ -31,52 +32,31 @@ sub show_and_pause {
 
 my $result;
 
-my $p = Net::Ping->new('syn');
+ok(
+    $obj->oauth_client_id( $ENV{SPOTIFY_CLIENT_ID} ),
+    'set client id'
+);
 
-# lets see if we can ping google
-my $host = 'www.google.com';
+ok(
+    $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ),
+    'set client secret'
+);
 
-my $have_internet = 0;
+ok( $obj->get_client_credentials(), 'get client credentials' );
 
-if ( $p->ping($host) ) {
-    $have_internet = 1;
-}
+$result = $obj->browse_featured_playlists();
 
-$p->close();
+ok(
+    $result =~ /total/,
+    'result string for browse_featured_playlists contains the word total'
+);
 
-if ($have_internet) {
+$result = $obj->browse_new_releases(
+    { country => 'US', limit => 5, offset => 2 } );
 
-    if ( $ENV{SPOTIFY_CLIENT_ID} ) {
+ok(
+    $result =~ /total/,
+    'result string for browse_new_releases contains the word total'
+);
 
-        ok(
-            $obj->oauth_client_id( $ENV{SPOTIFY_CLIENT_ID} ),
-            'set client id'
-        );
-
-        ok(
-            $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ),
-            'set client secret'
-        );
-
-        ok( $obj->get_client_credentials(), 'get client credentials' );
-
-        $result = $obj->browse_featured_playlists();
-
-        ok(
-            $result =~ /total/,
-            'result string for browse_featured_playlists contains the word total'
-        );
-
-        $result = $obj->browse_new_releases(
-            { country => 'US', limit => 5, offset => 2 } );
-
-        ok(
-            $result =~ /total/,
-            'result string for browse_new_releases contains the word total'
-        );
-
-        # print $result;
-
-    }
-}
-exit;
+done_testing();

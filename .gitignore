@@ -1,3 +1,4 @@
 .build
+*.sw*
 .tidyall.d
 WWW-Spotify*
