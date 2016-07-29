@@ -9,10 +9,6 @@ package WWW::Spotify;
 
 use Moose;
 
-BEGIN {
-    $WWW::Spotify::VERSION = "0.004";
-}
-
 use Data::Dumper;
 use URI;
 use URI::Escape;
