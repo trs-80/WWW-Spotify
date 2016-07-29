@@ -10,75 +10,75 @@ version 0.005
 
 # SYNOPSIS
 
-       use WWW::Spotify;
-    
-       my $spotify = WWW::Spotify->new();
-       
-       my $result;
-       
-       $result = $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
-       
-       # $result is a json structure, you can operate on it directly
-       # or you can use the "get" method see below
+    use WWW::Spotify;
 
-       $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
-       
-       $result = $spotify->albums_tracks( '6akEvsycLGftJxYudPjmqK',
-       {
-           limit => 1,
-           offset => 1
-           
-       }
-       ); 
-       
-       $result = $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
-       
-       my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
-       
-       $result = $spotify->artists( $artists_multiple );
-       
-       $result = $spotify->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
-                           { album_type => 'single',
-                             # country => 'US',
-                             limit   => 2,
-                             offset  => 0
-                           }  );
-       
-       $result = $spotify->track( '0eGsygTp906u18L0Oimnem' );
-       
-       $result = $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
-       
-       $result = $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
-                                               'SE' # country
-                                               );
-       
-       $result = $spotify->search(
-                           'tania bowra' ,
-                           'artist' ,
-                           { limit => 15 , offset => 0 }
-       );
-       
-       $result = $spotify->user( 'glennpmcdonald' );
-       
-       # public play interaction example
-       # NEED TO SET YOUR o_auth client_id and secret for these to work
-       
-       $spotify->browse_featured_playlists( country => 'US' );
-       
-       my $link = $spotify->get('playlists.items[*].href');
-       
-       # $link is an arrayfef of the all the playlist urls
-       
-       foreach my $for_tracks (@{$link}) {
-           # make sure the links look valid
-           next if $for_tracks !~ /spotify\/play/;
-           $spotify->query_full_url($for_tracks,1);
-           my $pl_name = $spotify->get('name');
-           my $tracks  = $spotify->get('tracks.items[*].track.id');
-           foreach my $track (@{$tracks}) {
-               print "$track\n";
-           }
-       }
+    my $spotify = WWW::Spotify->new();
+
+    my $result;
+
+    $result = $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
+
+    # $result is a json structure, you can operate on it directly
+    # or you can use the "get" method see below
+
+    $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
+
+    $result = $spotify->albums_tracks( '6akEvsycLGftJxYudPjmqK',
+    {
+        limit => 1,
+        offset => 1
+
+    }
+    );
+
+    $result = $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
+
+    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
+
+    $result = $spotify->artists( $artists_multiple );
+
+    $result = $spotify->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
+                        { album_type => 'single',
+                          # country => 'US',
+                          limit   => 2,
+                          offset  => 0
+                        }  );
+
+    $result = $spotify->track( '0eGsygTp906u18L0Oimnem' );
+
+    $result = $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
+
+    $result = $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
+                                            'SE' # country
+                                            );
+
+    $result = $spotify->search(
+                        'tania bowra' ,
+                        'artist' ,
+                        { limit => 15 , offset => 0 }
+    );
+
+    $result = $spotify->user( 'glennpmcdonald' );
+
+    # public play interaction example
+    # NEED TO SET YOUR o_auth client_id and secret for these to work
+
+    $spotify->browse_featured_playlists( country => 'US' );
+
+    my $link = $spotify->get('playlists.items[*].href');
+
+    # $link is an arrayfef of the all the playlist urls
+
+    foreach my $for_tracks (@{$link}) {
+        # make sure the links look valid
+        next if $for_tracks !~ /spotify\/play/;
+        $spotify->query_full_url($for_tracks,1);
+        my $pl_name = $spotify->get('name');
+        my $tracks  = $spotify->get('tracks.items[*].track.id');
+        foreach my $track (@{$tracks}) {
+            print "$track\n";
+        }
+    }
 
 # DESCRIPTION
 
@@ -106,7 +106,7 @@ last action.
                            'artist' ,
                            { limit => 15 , offset => 0 }
        );
-    
+
     my $image_url = $spotify->get( 'artists.items[0].images[0].url' );
 
 JSON::Path is the underlying library that actually parses the JSON.
@@ -124,11 +124,11 @@ equivalent to /v1/albums/{id}
 
     $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
 
-used album vs alubms since it is a singlar request
+used album vs albums since it is a singular request
 
 ## albums
 
-equivalent to /v1/albums?ids={ids} 
+equivalent to /v1/albums?ids={ids}
 
     $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
 
@@ -146,7 +146,7 @@ equivalent to /v1/albums/{id}/tracks
     {
         limit => 1,
         offset => 1
-        
+
     }
     );
 
@@ -156,14 +156,14 @@ equivalent to /v1/artists/{id}
 
     $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
 
-used artist vs artists since it is a singlar request and avoid collision with "artists" method
+used artist vs artists since it is a singular request and avoids collision with "artists" method
 
 ## artists
 
-equivalent to /v1/artists?ids={ids} 
+equivalent to /v1/artists?ids={ids}
 
     my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
-    
+
     $spotify->artists( $artists_multiple );
 
 ## artist\_albums
