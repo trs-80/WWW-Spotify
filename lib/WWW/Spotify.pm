@@ -1,8 +1,7 @@
-
 use strict;
 use warnings;
-use Data::Dumper;
 package WWW::Spotify;
+
 
 # ABSTRACT: Spotify Web API Wrapper
 
