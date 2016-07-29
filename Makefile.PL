@@ -35,7 +35,7 @@ my %WriteMakefileArgs = (
   },
   "TEST_REQUIRES" => {
     "Test::More" => 0,
-    "lib" => 0
+    "Test::RequiresInternet" => 0
   },
   "VERSION" => "0.005",
   "test" => {
@@ -55,11 +55,11 @@ my %FallbackPrereqs = (
   "Moose" => 0,
   "Scalar::Util" => 0,
   "Test::More" => 0,
+  "Test::RequiresInternet" => 0,
   "URI" => 0,
   "URI::Escape" => 0,
   "WWW::Mechanize" => 0,
   "XML::Simple" => 0,
-  "lib" => 0,
   "strict" => 0,
   "warnings" => 0
 );

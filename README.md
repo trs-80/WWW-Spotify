@@ -76,9 +76,9 @@ version 0.005
         my $pl_name = $spotify->get('name');
         my $tracks  = $spotify->get('tracks.items[*].track.id');
         foreach my $track (@{$tracks}) {
-            print "$track\n";
+                print "$track\n";
+            }
         }
-    }
 
 # DESCRIPTION
 
@@ -89,10 +89,6 @@ https://developer.spotify.com/web-api/
 Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
 very good and provides the exact path of the item within the JSON in the lower left
 of the screen as you mouse over an element.
-
-# NAME
-
-WWW::Spotify
 
 # METHODS
 

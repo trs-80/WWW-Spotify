@@ -17,7 +17,7 @@ requires "warnings" => "0";
 
 on 'test' => sub {
   requires "Test::More" => "0";
-  requires "lib" => "0";
+  requires "Test::RequiresInternet" => "0";
   requires "perl" => "5.006";
 };
 
