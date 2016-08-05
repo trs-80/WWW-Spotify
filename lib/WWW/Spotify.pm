@@ -19,9 +19,6 @@ use IO::CaptureOutput qw( capture qxx qxy );
 use MIME::Base64;
 use Types::Standard qw( Int Str );
 
-#use LWP::Authen::OAuth2;
-#use Digest::MD5::File qw( file_md5_hex url_md5_hex );
-
 has 'oauth_authorize_url' => (
     is      => 'rw',
     isa     => Str,
@@ -291,8 +288,6 @@ foreach my $key ( keys %api_call_options ) {
     $method_to_uri{ $api_call_options{$key}->{method} } = $key;
 }
 
-# print Dumper(\%method_to_uri);
-
 sub is_valid_json {
     my ( $self, $json, $caller ) = @_;
     $caller ||= 'undefined method';
@@ -491,21 +486,15 @@ sub get_oauth_authorize {
     $parts[0] = 'response_type=code';
     $parts[1] = 'redirect_uri=' . $self->oauth_redirect_uri;
 
-    # $parts[2] = 'state=' ;
-
     my $params = join( '&', @parts );
     $url = $url . "?client_id=" . $self->oauth_client_id() . "&$params";
 
-    # print $url , "\n";
     $mech->get($url);
 
-    # print Dumper($mech);
     return $mech->content();
-
 }
 
 sub get_client_credentials {
-
     my $self  = shift;
     my $scope = shift;
 
