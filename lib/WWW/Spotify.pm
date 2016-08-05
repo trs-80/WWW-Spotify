@@ -3,7 +3,7 @@ use warnings;
 package WWW::Spotify;
 
 
-use Moose;
+use Moo 2.002004;
 
 use Data::Dumper;
 use URI;
@@ -17,138 +17,139 @@ use Scalar::Util;
 use File::Basename;
 use IO::CaptureOutput qw( capture qxx qxy );
 use MIME::Base64;
+use Types::Standard qw( Int Str );
 
 #use LWP::Authen::OAuth2;
 #use Digest::MD5::File qw( file_md5_hex url_md5_hex );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => 'https://accounts.spotify.com/authorize'
 );
 
 has 'oauth_token_url' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => 'https://accounts.spotify.com/api/token'
 );
 
 has 'oauth_redirect_uri' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => 'http://www.spotify.com'
 );
 
 has 'oauth_client_id' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => $ENV{SPOTIFY_CLIENT_ID} || ''
 );
 
 has 'oauth_client_secret' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => $ENV{SPOTIFY_CLIENT_SECRET} || ''
 );
 
 has 'current_oath_code' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => ''
 );
 
 has 'current_access_token' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => ''
 );
 
 has 'result_format' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => 'json'
 );
 
 has 'grab_response_header' => (
     is      => 'rw',
-    isa     => 'Int',
+    isa     => Int,
     default => 0
 );
 
 has 'results' => (
     is      => 'rw',
-    isa     => 'Int',
+    isa     => Int,
     default => '15'
 );
 
 has 'debug' => (
     is      => 'rw',
-    isa     => 'Int',
+    isa     => Int,
     default => 0
 );
 
 has 'uri_scheme' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => 'https'
 );
 
 has 'current_client_credentials' => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => ''
 );
 
 has uri_hostname => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => 'api.spotify.com'
 );
 
 has uri_domain_path => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => 'api'
 );
 
 has call_type => (
     is  => 'rw',
-    isa => 'Str'
+    isa => Str
 );
 
 has auto_json_decode => (
     is      => 'rw',
-    isa     => 'Int',
+    isa     => Int,
     default => 0
 );
 
 has auto_xml_decode => (
     is      => 'rw',
-    isa     => 'Int',
+    isa     => Int,
     default => 0
 );
 
 has last_result => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => q{}
 );
 
 has last_error => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => q{}
 );
 
 has response_headers => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => q{}
 );
 
 has problem => (
     is      => 'rw',
-    isa     => 'Str',
+    isa     => Str,
     default => q{}
 );
 
