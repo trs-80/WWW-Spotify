@@ -17,7 +17,7 @@ use Scalar::Util;
 use File::Basename;
 use IO::CaptureOutput qw( capture qxx qxy );
 use MIME::Base64;
-use Types::Standard qw( Int Str );
+use Types::Standard qw( InstanceOf Int Str );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -148,6 +148,14 @@ has problem => (
     is      => 'rw',
     isa     => Str,
     default => q{}
+);
+
+has ua => (
+    is      => 'ro',
+    isa     => InstanceOf ['WWW::Mechanize'],
+    handles => { _mech => 'clone' },
+    lazy    => 1,
+    default => sub { WWW::Mechanize->new( autocheck => 0 ) },
 );
 
 my %api_call_options = (
@@ -399,7 +407,7 @@ sub send_get_request {
 
     warn "$url\n" if $self->debug;
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = WWW::Mechanize->new( autocheck => 0 );
+    my $mech = $self->_mech;
 
     if ( $attributes->{client_auth_required} ) {
 
@@ -473,7 +481,6 @@ sub get_oauth_authorize {
 
     my $grant_type = 'authorization_code';
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = WWW::Mechanize->new( autocheck => 0 );
     my $client_and_secret
         = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
@@ -489,9 +496,9 @@ sub get_oauth_authorize {
     my $params = join( '&', @parts );
     $url = $url . "?client_id=" . $self->oauth_client_id() . "&$params";
 
-    $mech->get($url);
+    $self->ua->get($url);
 
-    return $mech->content();
+    return $self->ua->content;
 }
 
 sub get_client_credentials {
@@ -507,7 +514,7 @@ sub get_client_credentials {
 
     my $grant_type = 'client_credentials';
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = WWW::Mechanize->new( autocheck => 0 );
+    my $mech = $self->_mech;
     my $client_and_secret
         = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
@@ -585,7 +592,6 @@ sub get_access_token {
     # need to authorize first??
 
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = WWW::Mechanize->new( autocheck => 0 );
     my $client_and_secret
         = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
 
@@ -605,13 +611,12 @@ sub get_access_token {
         $extra->{scope} = $scope;
     }
 
+    my $mech = $self->_mech;
     $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
 
     $mech->post( $url, [$extra] );
 
-    # print Dumper($mech);
     print $mech->content(), "\n";
-
 }
 
 sub get {
@@ -1053,6 +1058,23 @@ of the screen as you mouse over an element.
                 print "$track\n";
             }
         }
+
+=head1 CONSTRUCTOR ARGS
+
+=head2 ua
+
+You may provide your own L<WWW::Mechanize> object to the constructor.  You may
+want to set autocheck off.  To get extra debugging information, you can do
+something like this:
+
+    use LWP::ConsoleLogger::Easy qw( debug_ua );
+    use WWW::Mechanize;
+    use WWW::Spotify;
+
+    my $mech = WWW::Mechanize->new( autocheck => 0 );
+    debug_ua( $mech );
+
+    my $ua = WWW::Mechanize->new( ua => $ua );
 
 =head1 METHODS
 

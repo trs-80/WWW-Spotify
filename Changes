@@ -1,4 +1,5 @@
 {{$NEXT}}
+- Allow users to provide their own useragents via "ua" arg to new().
 
 0.006     2016-08-04 23:49:44-04:00 America/Toronto
 - Switch from Moose to Moo + Type::Tiny
