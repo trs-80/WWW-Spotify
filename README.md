@@ -6,7 +6,7 @@ WWW::Spotify - Spotify Web API Wrapper
 
 # VERSION
 
-version 0.006
+version 0.007
 
 # SYNOPSIS
 
@@ -89,6 +89,23 @@ https://developer.spotify.com/web-api/
 Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
 very good and provides the exact path of the item within the JSON in the lower left
 of the screen as you mouse over an element.
+
+# CONSTRUCTOR ARGS
+
+## ua
+
+You may provide your own [WWW::Mechanize](https://metacpan.org/pod/WWW::Mechanize) object to the constructor.  You may
+want to set autocheck off.  To get extra debugging information, you can do
+something like this:
+
+    use LWP::ConsoleLogger::Easy qw( debug_ua );
+    use WWW::Mechanize;
+    use WWW::Spotify;
+
+    my $mech = WWW::Mechanize->new( autocheck => 0 );
+    debug_ua( $mech );
+
+    my $ua = WWW::Mechanize->new( ua => $ua );
 
 # METHODS
 

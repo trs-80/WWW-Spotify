@@ -26,6 +26,7 @@ my %WriteMakefileArgs = (
     "MIME::Base64" => 0,
     "Moo" => "2.002004",
     "Scalar::Util" => 0,
+    "Try::Tiny" => 0,
     "Types::Standard" => 0,
     "URI" => 0,
     "URI::Escape" => 0,
@@ -35,10 +36,11 @@ my %WriteMakefileArgs = (
     "warnings" => 0
   },
   "TEST_REQUIRES" => {
+    "JSON::MaybeXS" => 0,
     "Test::More" => 0,
     "Test::RequiresInternet" => 0
   },
-  "VERSION" => "0.006",
+  "VERSION" => "0.007",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -50,6 +52,7 @@ my %FallbackPrereqs = (
   "File::Basename" => 0,
   "HTTP::Headers" => 0,
   "IO::CaptureOutput" => 0,
+  "JSON::MaybeXS" => 0,
   "JSON::Path" => 0,
   "JSON::XS" => 0,
   "MIME::Base64" => 0,
@@ -57,6 +60,7 @@ my %FallbackPrereqs = (
   "Scalar::Util" => 0,
   "Test::More" => 0,
   "Test::RequiresInternet" => 0,
+  "Try::Tiny" => 0,
   "Types::Standard" => 0,
   "URI" => 0,
   "URI::Escape" => 0,

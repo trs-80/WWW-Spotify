@@ -7,6 +7,7 @@ requires "JSON::XS" => "0";
 requires "MIME::Base64" => "0";
 requires "Moo" => "2.002004";
 requires "Scalar::Util" => "0";
+requires "Try::Tiny" => "0";
 requires "Types::Standard" => "0";
 requires "URI" => "0";
 requires "URI::Escape" => "0";
@@ -17,6 +18,7 @@ requires "strict" => "0";
 requires "warnings" => "0";
 
 on 'test' => sub {
+  requires "JSON::MaybeXS" => "0";
   requires "Test::More" => "0";
   requires "Test::RequiresInternet" => "0";
   requires "perl" => "5.006";
