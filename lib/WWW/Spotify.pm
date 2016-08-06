@@ -6,18 +6,18 @@ package WWW::Spotify;
 use Moo 2.002004;
 
 use Data::Dumper;
+use File::Basename;
+use HTTP::Headers;
+use IO::CaptureOutput qw( capture qxx qxy );
+use JSON::Path;
+use JSON::XS;
+use MIME::Base64;
+use Scalar::Util;
+use Types::Standard qw( Bool InstanceOf Int Str );
 use URI;
 use URI::Escape;
 use WWW::Mechanize;
-use JSON::XS;
-use JSON::Path;
 use XML::Simple;
-use HTTP::Headers;
-use Scalar::Util;
-use File::Basename;
-use IO::CaptureOutput qw( capture qxx qxy );
-use MIME::Base64;
-use Types::Standard qw( Bool InstanceOf Int Str );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
