@@ -4,6 +4,7 @@ requires "HTTP::Headers" => "0";
 requires "IO::CaptureOutput" => "0";
 requires "JSON::Path" => "0";
 requires "JSON::XS" => "0";
+requires "LWP::Protocol::https" => "0";
 requires "MIME::Base64" => "0";
 requires "Moo" => "2.002004";
 requires "Scalar::Util" => "0";

@@ -1,4 +1,5 @@
 {{$NEXT}}
+- Adds LWP::Protocol::https to dependencies.
 
 0.007     2016-08-06 01:50:04-04:00 America/Toronto
 - Allow users to provide their own useragents via "ua" arg to new().

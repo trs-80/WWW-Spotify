@@ -10,6 +10,7 @@ use HTTP::Headers;
 use IO::CaptureOutput qw( capture qxx qxy );
 use JSON::Path;
 use JSON::XS;
+use LWP::Protocol::https ();
 use MIME::Base64;
 use Scalar::Util;
 use Try::Tiny qw( catch try );
