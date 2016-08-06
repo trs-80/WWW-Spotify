@@ -2,8 +2,8 @@ requires "Data::Dumper" => "0";
 requires "File::Basename" => "0";
 requires "HTTP::Headers" => "0";
 requires "IO::CaptureOutput" => "0";
+requires "JSON::MaybeXS" => "0";
 requires "JSON::Path" => "0";
-requires "JSON::XS" => "0";
 requires "LWP::Protocol::https" => "0";
 requires "MIME::Base64" => "0";
 requires "Moo" => "2.002004";
@@ -19,7 +19,6 @@ requires "strict" => "0";
 requires "warnings" => "0";
 
 on 'test' => sub {
-  requires "JSON::MaybeXS" => "0";
   requires "Test::More" => "0";
   requires "Test::RequiresInternet" => "0";
   requires "perl" => "5.006";

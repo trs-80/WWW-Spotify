@@ -21,8 +21,8 @@ my %WriteMakefileArgs = (
     "File::Basename" => 0,
     "HTTP::Headers" => 0,
     "IO::CaptureOutput" => 0,
+    "JSON::MaybeXS" => 0,
     "JSON::Path" => 0,
-    "JSON::XS" => 0,
     "LWP::Protocol::https" => 0,
     "MIME::Base64" => 0,
     "Moo" => "2.002004",
@@ -37,7 +37,6 @@ my %WriteMakefileArgs = (
     "warnings" => 0
   },
   "TEST_REQUIRES" => {
-    "JSON::MaybeXS" => 0,
     "Test::More" => 0,
     "Test::RequiresInternet" => 0
   },
@@ -55,7 +54,6 @@ my %FallbackPrereqs = (
   "IO::CaptureOutput" => 0,
   "JSON::MaybeXS" => 0,
   "JSON::Path" => 0,
-  "JSON::XS" => 0,
   "LWP::Protocol::https" => 0,
   "MIME::Base64" => 0,
   "Moo" => "2.002004",

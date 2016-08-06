@@ -9,7 +9,7 @@ use File::Basename;
 use HTTP::Headers;
 use IO::CaptureOutput qw( capture qxx qxy );
 use JSON::Path;
-use JSON::XS;
+use JSON::MaybeXS qw( decode_json );
 use LWP::Protocol::https ();
 use MIME::Base64;
 use Scalar::Util;
