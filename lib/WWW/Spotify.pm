@@ -2,7 +2,6 @@ use strict;
 use warnings;
 package WWW::Spotify;
 
-
 use Moo 2.002004;
 
 use Data::Dumper;
@@ -13,6 +12,7 @@ use JSON::Path;
 use JSON::XS;
 use MIME::Base64;
 use Scalar::Util;
+use Try::Tiny qw( catch try );
 use Types::Standard qw( Bool InstanceOf Int Str );
 use URI;
 use URI::Escape;
@@ -294,20 +294,6 @@ my %method_to_uri = ();
 foreach my $key ( keys %api_call_options ) {
     next if $api_call_options{$key}->{method} eq '';
     $method_to_uri{ $api_call_options{$key}->{method} } = $key;
-}
-
-sub is_valid_json {
-    my ( $self, $json, $caller ) = @_;
-    $caller ||= 'undefined method';
-    eval { decode_json $json; };
-
-    if ($@) {
-        $self->last_error("invalid json passed into '$caller'");
-        return 0;
-    }
-    else {
-        return 1;
-    }
 }
 
 sub send_post_request {

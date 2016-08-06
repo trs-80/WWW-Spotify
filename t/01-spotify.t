@@ -1,12 +1,14 @@
 use strict;
 
 use Data::Dumper;
+use JSON::MaybeXS qw( decode_json );
 use Test::More;
 use Test::RequiresInternet (
     'accounts.spotify.com' => 443,
     'api.spotify.com'      => 443,
     'www.spotify.com'      => 80,
 );
+use Try::Tiny qw( catch try );
 use WWW::Spotify ();
 
 my $obj = WWW::Spotify->new();
@@ -27,13 +29,13 @@ my $result = $obj->search(
 
 show_and_pause($result);
 
-ok( $obj->is_valid_json($result), 'search' );
+ok( is_valid_json($result), 'search' );
 
 #------------------#
 
 $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
 
-ok( $obj->is_valid_json( $result, 'album' ), "album" );
+ok( is_valid_json( $result, 'album' ), "album" );
 
 show_and_pause($result);
 
@@ -43,7 +45,7 @@ $result
     = $obj->albums(
     '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37');
 
-ok( $obj->is_valid_json( $result, 'ablums' ), "albums (multiple ids)" );
+ok( is_valid_json( $result, 'albums' ), "albums (multiple ids)" );
 
 show_and_pause($result);
 
@@ -58,7 +60,7 @@ $result = $obj->albums(
 );
 
 ok(
-    $obj->is_valid_json( $result, 'ablums' ),
+    is_valid_json( $result, 'ablums' ),
     "albums (multiple ids) as array ref"
 );
 
@@ -75,7 +77,7 @@ $result = $obj->albums_tracks(
     }
 );
 
-ok( $obj->is_valid_json( $result, 'albums_tracks' ), "albums_tracks" );
+ok( is_valid_json( $result, 'albums_tracks' ), "albums_tracks" );
 
 show_and_pause($result);
 
@@ -83,7 +85,7 @@ show_and_pause($result);
 
 $result = $obj->artist('0LcJLqbBmaGUft1e9Mm8HV');
 
-ok( $obj->is_valid_json( $result, 'artist' ), "artist" );
+ok( is_valid_json( $result, 'artist' ), "artist" );
 
 show_and_pause($result);
 
@@ -94,7 +96,7 @@ my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
 $result = $obj->artists($artists_multiple);
 
 ok(
-    $obj->is_valid_json( $result, 'artists' ),
+    is_valid_json( $result, 'artists' ),
     "artists ( $artists_multiple )"
 );
 
@@ -112,7 +114,7 @@ $result = $obj->artist_albums(
         offset => 0
     }
 );
-ok( $obj->is_valid_json( $result, 'artist_albums' ), "artist_albums" );
+ok( is_valid_json( $result, 'artist_albums' ), "artist_albums" );
 
 show_and_pause($result);
 
@@ -121,7 +123,7 @@ show_and_pause($result);
 $result = $obj->track('0eGsygTp906u18L0Oimnem');
 
 ok(
-    $obj->is_valid_json( $result, 'track' ),
+    is_valid_json( $result, 'track' ),
     "track returned valid json"
 );
 
@@ -132,7 +134,7 @@ show_and_pause($result);
 $result = $obj->tracks('0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G');
 
 ok(
-    $obj->is_valid_json( $result, 'tracks' ),
+    is_valid_json( $result, 'tracks' ),
     "tracks returned valid json"
 );
 
@@ -148,7 +150,7 @@ $result = $obj->artist_top_tracks(
 show_and_pause($result);
 
 ok(
-    $obj->is_valid_json( $result, 'artist_top_tracks' ),
+    is_valid_json( $result, 'artist_top_tracks' ),
     "artist_top_tracks call"
 );
 
@@ -159,7 +161,7 @@ $result = $obj->artist_related_artists('43ZHCT0cAZBISjO8DG9PnE');
 show_and_pause($result);
 
 ok(
-    $obj->is_valid_json( $result, 'artist_related_artists' ),
+    is_valid_json( $result, 'artist_related_artists' ),
     "artist_related_artists call"
 );
 
@@ -169,7 +171,7 @@ ok(
 # spotify:user:elainelin
 $result = $obj->user('glennpmcdonald');
 
-ok( $obj->is_valid_json( $result, 'user' ), "user (glennpmcdonald)" );
+ok( is_valid_json( $result, 'user' ), "user (glennpmcdonald)" );
 
 show_and_pause($result);
 
@@ -190,6 +192,19 @@ $result = $obj->user_playlists(  );
 
 =cut
 
-# test me
+sub is_valid_json {
+    my $json = shift;
+    my $decoded;
+    try {
+        $decoded = decode_json($json);
+    }
+    catch {
+        diag 'could not decode JSON';
+        diag $json;
+        diag $_;
+    };
+
+    return defined $decoded;
+}
 
 done_testing();
