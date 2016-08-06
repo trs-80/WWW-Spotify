@@ -17,7 +17,7 @@ use Scalar::Util;
 use File::Basename;
 use IO::CaptureOutput qw( capture qxx qxy );
 use MIME::Base64;
-use Types::Standard qw( InstanceOf Int Str );
+use Types::Standard qw( Bool InstanceOf Int Str );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -81,7 +81,7 @@ has 'results' => (
 
 has 'debug' => (
     is      => 'rw',
-    isa     => Int,
+    isa     => Bool,
     default => 0
 );
 

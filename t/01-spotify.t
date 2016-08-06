@@ -11,14 +11,6 @@ use WWW::Spotify ();
 
 my $obj = WWW::Spotify->new();
 
-#------------------#
-
-ok( $obj->debug(1), "turn debug on" );
-
-#------------------#
-
-ok( $obj->debug(0) == 0, 'turn debug off' );
-
 sub show_and_pause {
     if ( $obj->debug() == 1 ) {
         my $show = shift;
