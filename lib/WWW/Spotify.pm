@@ -18,7 +18,6 @@ use Types::Standard qw( Bool InstanceOf Int Str );
 use URI;
 use URI::Escape;
 use WWW::Mechanize;
-use XML::Simple;
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -448,6 +447,7 @@ sub format_results {
     if ( $self->auto_xml_decode && $self->result_format eq 'xml' ) {
 
         # FIX ME
+        require XML::Simple;
         my $xs = XML::Simple->new();
         return $xs->XMLin($content);
     }
