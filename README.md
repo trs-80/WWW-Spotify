@@ -6,7 +6,7 @@ WWW::Spotify - Spotify Web API Wrapper
 
 # VERSION
 
-version 0.008
+version 0.009
 
 # SYNOPSIS
 
@@ -274,7 +274,7 @@ Aaron Johnson <aaronjjohnson@gmail.com>
 
 # COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2014 by Aaron Johnson.
+This software is copyright (c) 2014-2017 by Aaron Johnson.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
