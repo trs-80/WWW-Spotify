@@ -662,7 +662,7 @@ sub get {
 sub build_url_base {
 
     # first the uri type
-    my $self = shift;
+    my $self      = shift;
     my $call_type = shift || $self->call_type();
 
     my $url = $self->uri_scheme();
