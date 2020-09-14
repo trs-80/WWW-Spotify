@@ -21,11 +21,20 @@ sub show_and_pause {
     }
 }
 
-my $result = $obj->search(
-    'tania bowra',
-    'artist',
-    { limit => 15, offset => 0 }
-);
+$obj->force_client_auth(1);
+
+ok( $obj->force_client_auth() == 1 );
+
+#------------------#
+
+$obj->force_client_auth(0);
+
+ok( $obj->force_client_auth() == 0 );
+
+#------------------#
+
+my $result
+    = $obj->search( 'tania bowra', 'artist', { limit => 15, offset => 0 } );
 
 show_and_pause($result);
 
@@ -41,8 +50,7 @@ show_and_pause($result);
 
 #------------------#
 
-$result
-    = $obj->albums(
+$result = $obj->albums(
     '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37');
 
 ok( is_valid_json( $result, 'albums' ), "albums (multiple ids)" );
@@ -53,8 +61,7 @@ show_and_pause($result);
 
 $result = $obj->albums(
     [
-        '41MnTivkwTO3UUJ8DrqEJJ',
-        '6JWc4iAiJ9FjyK0B59ABb4',
+        '41MnTivkwTO3UUJ8DrqEJJ', '6JWc4iAiJ9FjyK0B59ABb4',
         '6UXCm6bOO4gFlDQZV5yL37'
     ]
 );
@@ -95,10 +102,7 @@ my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
 
 $result = $obj->artists($artists_multiple);
 
-ok(
-    is_valid_json( $result, 'artists' ),
-    "artists ( $artists_multiple )"
-);
+ok( is_valid_json( $result, 'artists' ), "artists ( $artists_multiple )" );
 
 show_and_pause($result);
 
@@ -122,10 +126,7 @@ show_and_pause($result);
 
 $result = $obj->track('0eGsygTp906u18L0Oimnem');
 
-ok(
-    is_valid_json( $result, 'track' ),
-    "track returned valid json"
-);
+ok( is_valid_json( $result, 'track' ), "track returned valid json" );
 
 show_and_pause($result);
 
@@ -133,10 +134,7 @@ show_and_pause($result);
 
 $result = $obj->tracks('0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G');
 
-ok(
-    is_valid_json( $result, 'tracks' ),
-    "tracks returned valid json"
-);
+ok( is_valid_json( $result, 'tracks' ), "tracks returned valid json" );
 
 show_and_pause($result);
 
@@ -149,10 +147,7 @@ $result = $obj->artist_top_tracks(
 
 show_and_pause($result);
 
-ok(
-    is_valid_json( $result, 'artist_top_tracks' ),
-    "artist_top_tracks call"
-);
+ok( is_valid_json( $result, 'artist_top_tracks' ), "artist_top_tracks call" );
 
 #------------------#
 
@@ -176,6 +171,15 @@ ok( is_valid_json( $result, 'user' ), "user (glennpmcdonald)" );
 show_and_pause($result);
 
 #------------------#
+
+$result
+    = $obj->search( 'tania bowra', 'artist', { limit => 15, offset => 0 } );
+
+my $image_url = $obj->get('artists.items[0].images[0].url');
+
+ok( defined $image_url );
+
+show_and_pause($result);
 
 =pod
 
