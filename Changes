@@ -1,4 +1,5 @@
 {{$NEXT}}
+- Fix credentials (GH#8) (trs-80)
 
 0.009     2017-02-16 23:18:10-05:00 America/Toronto
 - Require rather than use XML::Simple.
