@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 package WWW::Spotify;
-
+our $VERSION = '0.011';
 use Moo 2.002004;
 
 use Data::Dumper;
