@@ -1,6 +1,6 @@
 use strict;
 
-use Data::Dumper;
+use Data::Dumper qw( Dumper );
 use JSON::MaybeXS qw( decode_json );
 use Test::More;
 use Test::RequiresInternet (
