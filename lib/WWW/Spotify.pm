@@ -5,20 +5,14 @@ package WWW::Spotify;
 our $VERSION = '0.011';
 use Moo 2.002004;
 
-use Data::Dumper;
-use File::Basename;
-use HTTP::Headers;
-use IO::CaptureOutput qw( capture qxx qxy );
-use JSON::Path;
+use Data::Dumper qw( Dumper );
+use IO::CaptureOutput qw( capture );
+use JSON::Path ();
 use JSON::MaybeXS qw( decode_json );
-use LWP::Protocol::https ();
-use MIME::Base64;
-use Scalar::Util;
-use Try::Tiny qw( catch try );
+use MIME::Base64 qw( encode_base64 );
 use Types::Standard qw( Bool InstanceOf Int Str );
-use URI;
-use URI::Escape;
-use WWW::Mechanize;
+use URI            ();
+use WWW::Mechanize ();
 
 has 'oauth_authorize_url' => (
     is      => 'rw',

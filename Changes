@@ -1,4 +1,5 @@
 {{$NEXT}}
+- Tidy imports and drop support for perl 5.8 (GH#12) (Olaf Alders)
 
 0.010     2020-09-17 21:21:55Z
 - Fix credentials (GH#8) (trs-80)
