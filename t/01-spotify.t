@@ -1,6 +1,6 @@
 use strict;
 
-use Data::Dumper qw( Dumper );
+use Data::Dumper  qw( Dumper );
 use JSON::MaybeXS qw( decode_json );
 use Test::More;
 use Test::RequiresInternet (
@@ -8,7 +8,7 @@ use Test::RequiresInternet (
     'api.spotify.com'      => 443,
     'www.spotify.com'      => 80,
 );
-use Try::Tiny qw( catch try );
+use Try::Tiny    qw( catch try );
 use WWW::Spotify ();
 
 my $obj = WWW::Spotify->new();
