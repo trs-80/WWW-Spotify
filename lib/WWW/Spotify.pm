@@ -158,7 +158,6 @@ has ua => (
 );
 
 my %api_call_options = (
-
     '/v1/albums/{id}' => {
         info   => 'Get an album',
         type   => 'GET',
@@ -239,7 +238,6 @@ my %api_call_options = (
     },
 
     '/v1/me' => {
-
         info   => "Get current user's profile",
         type   => 'GET',
         method => 'me'
@@ -459,7 +457,6 @@ sub format_results {
 }
 
 sub get_oauth_authorize {
-
     my $self = shift;
 
     if ( $self->current_oath_code() ) {
@@ -878,7 +875,6 @@ sub track {
             params => { 'id' => $id }
         }
     );
-
 }
 
 sub browse_featured_playlists {
