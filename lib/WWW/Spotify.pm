@@ -1,9 +1,8 @@
-use strict;
-use warnings;
-
 package WWW::Spotify;
-our $VERSION = '0.011';
+
 use Moo 2.002004;
+
+our $VERSION = '0.011';
 
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
