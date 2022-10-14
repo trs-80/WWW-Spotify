@@ -9,20 +9,20 @@ requires "LWP::Protocol::https" => "6.10";
 requires "MIME::Base64" => "0";
 requires "Moo" => "2.002004";
 requires "Types::Standard" => "0";
-requires "URI" => "0";
 requires "WWW::Mechanize" => "0";
 requires "XML::Simple" => "0";
 requires "perl" => "5.010";
-requires "strict" => "0";
-requires "warnings" => "0";
 
 on 'test' => sub {
   requires "ExtUtils::MakeMaker" => "0";
   requires "File::Spec" => "0";
+  requires "LWP::UserAgent" => "0";
   requires "Test::More" => "0";
   requires "Test::RequiresInternet" => "0";
   requires "Try::Tiny" => "0";
   requires "perl" => "5.010";
+  requires "strict" => "0";
+  requires "warnings" => "0";
 };
 
 on 'test' => sub {
@@ -56,6 +56,8 @@ on 'develop' => sub {
   requires "Test::Synopsis" => "0";
   requires "Test::Vars" => "0.014";
   requires "Test::Version" => "1";
+  requires "strict" => "0";
+  requires "warnings" => "0";
 };
 
 on 'develop' => sub {

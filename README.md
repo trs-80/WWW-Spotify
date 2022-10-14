@@ -2,15 +2,13 @@
 
 WWW::Spotify - Spotify Web API Wrapper
 
-[![Build Status](https://travis-ci.org/trs-80/WWW-Spotify.png?branch=master)](https://travis-ci.org/trs-80/WWW-Spotify)
-
 # VERSION
 
-version 0.010
+version 0.011
 
 # SYNOPSIS
 
-    use WWW::Spotify;
+    use WWW::Spotify ();
 
     my $spotify = WWW::Spotify->new();
 
@@ -94,18 +92,18 @@ of the screen as you mouse over an element.
 
 ## ua
 
-You may provide your own [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize) object to the constructor.  You may
-want to set autocheck off.  To get extra debugging information, you can do
-something like this:
+You may provide your own user agent object to the constructor.  This should be
+a [LWP:UserAgent](LWP:UserAgent) or a subclass of it, like [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize). If you are
+using [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize), you may want to set autocheck off.  To get extra
+debugging information, you can do something like this:
 
     use LWP::ConsoleLogger::Easy qw( debug_ua );
-    use WWW::Mechanize;
-    use WWW::Spotify;
+    use WWW::Mechanize ();
+    use WWW::Spotify ();
 
     my $mech = WWW::Mechanize->new( autocheck => 0 );
     debug_ua( $mech );
-
-    my $ua = WWW::Mechanize->new( ua => $ua );
+    my $spotify = WWW::Spotify->new( ua => $mech )
 
 # METHODS
 
