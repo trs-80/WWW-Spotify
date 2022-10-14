@@ -10,7 +10,6 @@ use JSON::Path        ();
 use JSON::MaybeXS     qw( decode_json );
 use MIME::Base64      qw( encode_base64 );
 use Types::Standard   qw( Bool InstanceOf Int Str );
-use URI               ();
 use WWW::Mechanize    ();
 
 has 'oauth_authorize_url' => (
