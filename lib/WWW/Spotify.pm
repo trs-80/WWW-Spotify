@@ -10,7 +10,6 @@ use JSON::Path        ();
 use JSON::MaybeXS     qw( decode_json );
 use MIME::Base64      qw( encode_base64 );
 use Types::Standard   qw( Bool InstanceOf Int Str );
-use WWW::Mechanize    ();
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -151,10 +150,13 @@ has problem => (
 
 has ua => (
     is      => 'ro',
-    isa     => InstanceOf ['WWW::Mechanize'],
+    isa     => InstanceOf ['LWP::UserAgent'],
     handles => { _mech => 'clone' },
     lazy    => 1,
-    default => sub { WWW::Mechanize->new( autocheck => 0 ) },
+    default => sub {
+        require WWW::Mechanize;
+        WWW::Mechanize->new( autocheck => 0 );
+    },
 );
 
 my %api_call_options = (
@@ -980,7 +982,7 @@ of the screen as you mouse over an element.
 
 =head1 SYNOPSIS
 
-    use WWW::Spotify;
+    use WWW::Spotify ();
 
     my $spotify = WWW::Spotify->new();
 
@@ -1054,18 +1056,18 @@ of the screen as you mouse over an element.
 
 =head2 ua
 
-You may provide your own L<WWW::Mechanize> object to the constructor.  You may
-want to set autocheck off.  To get extra debugging information, you can do
-something like this:
+You may provide your own user agent object to the constructor.  This should be
+a L<LWP:UserAgent> or a subclass of it, like L<WWW::Mechanize>. If you are
+using L<WWW::Mechanize>, you may want to set autocheck off.  To get extra
+debugging information, you can do something like this:
 
     use LWP::ConsoleLogger::Easy qw( debug_ua );
-    use WWW::Mechanize;
-    use WWW::Spotify;
+    use WWW::Mechanize ();
+    use WWW::Spotify ();
 
     my $mech = WWW::Mechanize->new( autocheck => 0 );
     debug_ua( $mech );
-
-    my $ua = WWW::Mechanize->new( ua => $ua );
+    my $spotify = WWW::Spotify->new( ua => $mech )
 
 =head1 METHODS
 
