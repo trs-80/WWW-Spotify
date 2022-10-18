@@ -2,8 +2,8 @@
 - Improved options for error handling (GH#11)
 - Improved last_error
 - Added check_response
-- Added request_custom_handler
-- Added request_custom_handler_result
+- Added custom_request_handler
+- Added custom_request_handler_result
 - Added response_content_type
 - Added response_status
 

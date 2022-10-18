@@ -52,7 +52,7 @@ ok( is_valid_json($result), 'search' );
 
 #------------------#
 
-$obj->request_custom_handler(
+$obj->custom_request_handler(
     sub {
         my $m = shift;
         if ( $m->status() == 401 ) {
@@ -66,8 +66,8 @@ $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
 ok( is_valid_json( $result, 'album' ), 'album' );
 
 ok(
-    $obj->request_custom_handler_result() == 1,
-    'request_custom_handler_result'
+    $obj->custom_request_handler_result() == 1,
+    'custom_request_handler_result'
 );
 
 show_and_pause($result);
@@ -84,7 +84,7 @@ if ($@) {
 
 #ok( is_valid_json( $result, 'album' ), 'album' );
 
-#ok( $obj->request_custom_handler_result() == 1, 'request_custom_handler_result' );
+#ok( $obj->custom_request_handler_result() == 1, 'custom_request_handler_result' );
 
 show_and_pause($result);
 

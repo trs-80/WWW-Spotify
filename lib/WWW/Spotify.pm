@@ -2,7 +2,7 @@ package WWW::Spotify;
 
 use Moo 2.002004;
 
-our $VERSION = '0.012';
+our $VERSION = '0.011';
 
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
@@ -10,6 +10,7 @@ use JSON::Path        ();
 use JSON::MaybeXS     qw( decode_json );
 use MIME::Base64      qw( encode_base64 );
 use Types::Standard   qw( Bool InstanceOf Int Str );
+use HTTP::Status      qw( HTTP_OK );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -171,14 +172,15 @@ has 'response_content_type' => (
     default => q{}
 );
 
-has 'request_custom_handler' => (
+has 'custom_request_handler' => (
     is      => 'rw',
     default => ''
 );
 
-has 'request_custom_handler_result' => (
-    is      => 'rw',
-    default => ''
+has 'custom_request_handler_result' => (
+    is      => 'ro',
+    default => '',
+    writer  => '_set_custom_request_handler_result'
 );
 
 has 'check_response' => (
@@ -445,9 +447,9 @@ sub send_get_request {
     $self->response_status( $mech->status() );
     $self->response_content_type( $mech->content_type() );
 
-    if ( ref( $self->request_custom_handler() ) eq 'CODE' ) {
-        $self->request_custom_handler_result(
-            $self->request_custom_handler()->($mech) );
+    if ( ref( $self->custom_request_handler() ) eq 'CODE' ) {
+        $self->_set_custom_request_handler_result(
+            $self->custom_request_handler()->($mech) );
     }
 
     # the original code did not provide adequate built in validation
@@ -457,7 +459,7 @@ sub send_get_request {
     # existing code using older versions of this module.
     # verify the status and content_type of the response
     if (   $self->response_content_type() =~ /application\/(json|xml)/i
-        && $self->response_status() != '200' ) {
+        && $self->response_status() != HTTP_OK ) {
         warn "content type is ", $self->response_content_type(), "\n"
             if $self->debug();
         $self->last_error( "request failed, status("
@@ -1318,13 +1320,13 @@ returns the response type for the last request made, helpful to verify JSON/XML
 
     my $content_type = $spotify->response_content_type();
 
-=head2 request_custom_handler
+=head2 custom_request_handler
 
 pass a callback subroutine to this method that will be run at the end of the
 request prior to check_response, if enabled
 
     # $m is the WWW::Mechanize object
-    $spotify->request_custom_handler(
+    $spotify->custom_request_handler(
         sub { my $m = shift;
             if ($m->status() == 401) {
                 return 1;
@@ -1332,12 +1334,12 @@ request prior to check_response, if enabled
         }
     );
 
-=head2 request_custom_handler_result
+=head2 custom_request_handler_result
 
-returns the result of the most recent execution of the request_custom_handler callback
+returns the result of the most recent execution of the custom_request_handler callback
 this allows you to determine the success/failure criteria of your callback
 
-    my $callback_result = $spotify->request_custom_handler_result();
+    my $callback_result = $spotify->custom_request_handler_result();
 
 =head2 check_response
 
