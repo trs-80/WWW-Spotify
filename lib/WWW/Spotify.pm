@@ -172,12 +172,12 @@ has 'response_content_type' => (
 );
 
 has 'request_custom_handler' => (
-    is => 'rw',
+    is      => 'rw',
     default => ''
 );
 
 has 'request_custom_handler_result' => (
-    is => 'rw',
+    is      => 'rw',
     default => ''
 );
 
@@ -442,13 +442,12 @@ sub send_get_request {
         $self->_set_response_headers($mech);
     }
 
-    $self->response_status($mech->status());
-    $self->response_content_type($mech->content_type());
+    $self->response_status( $mech->status() );
+    $self->response_content_type( $mech->content_type() );
 
-    if (ref($self->request_custom_handler()) eq 'CODE') {
+    if ( ref( $self->request_custom_handler() ) eq 'CODE' ) {
         $self->request_custom_handler_result(
-            $self->request_custom_handler()->($mech)
-        );
+            $self->request_custom_handler()->($mech) );
     }
 
     # the original code did not provide adequate bulit in validation
@@ -457,18 +456,23 @@ sub send_get_request {
     # breaking/changing
     # existing code using older versions of this module.
     # verify the status and content_type of the response
-    if ($self->response_content_type() =~ /application\/(json|xml)/i
-            && $self->response_status() != '200'
-            ) {
-        warn "content type is " , $self->response_content_type() , "\n" if $self->debug();
-        $self->last_error( "request failed, status(" . $self->response_status() . ") examine last_result for details" );
+    if (   $self->response_content_type() =~ /application\/(json|xml)/i
+        && $self->response_status() != '200' ) {
+        warn "content type is ", $self->response_content_type(), "\n"
+            if $self->debug();
+        $self->last_error( "request failed, status("
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
-    if ($self->check_response() == 1 && $self->last_error ne '') {
+    if ( $self->check_response() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
-    return $self->format_results( $mech->content, $mech->ct() , $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 
 }
 
