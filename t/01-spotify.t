@@ -52,6 +52,16 @@ ok( is_valid_json($result), 'search' );
 
 #------------------#
 
+my $crh_check = 0;
+
+eval { $obj->custom_request_handler('string'); };
+
+if ($@) {
+    $crh_check = 1;
+}
+
+ok( $crh_check == 1, 'customer_request_handler requires code ref' );
+
 $obj->custom_request_handler(
     sub {
         my $m = shift;

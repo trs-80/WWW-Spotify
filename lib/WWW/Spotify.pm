@@ -9,7 +9,7 @@ use IO::CaptureOutput qw( capture );
 use JSON::Path        ();
 use JSON::MaybeXS     qw( decode_json );
 use MIME::Base64      qw( encode_base64 );
-use Types::Standard   qw( Bool InstanceOf Int Str );
+use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
 use HTTP::Status      qw( HTTP_OK );
 
 has 'oauth_authorize_url' => (
@@ -174,7 +174,7 @@ has 'response_content_type' => (
 
 has 'custom_request_handler' => (
     is        => 'rw',
-    default   => undef,
+    isa       => CodeRef,
     predicate => '_has_custom_request_handler',
 );
 
@@ -448,8 +448,7 @@ sub send_get_request {
     $self->response_status( $mech->status() );
     $self->response_content_type( $mech->content_type() );
 
-    if ( $self->_has_custom_request_handler()
-        && ref( $self->custom_request_handler() ) eq 'CODE' ) {
+    if ( $self->_has_custom_request_handler() ) {
         $self->_set_custom_request_handler_result(
             $self->custom_request_handler()->($mech) );
     }
