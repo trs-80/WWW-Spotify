@@ -173,8 +173,8 @@ has 'response_content_type' => (
 );
 
 has 'custom_request_handler' => (
-    is      => 'rw',
-    default => undef,
+    is        => 'rw',
+    default   => undef,
     predicate => '_has_custom_request_handler',
 );
 
@@ -448,7 +448,8 @@ sub send_get_request {
     $self->response_status( $mech->status() );
     $self->response_content_type( $mech->content_type() );
 
-    if ( $self->_has_custom_request_handler() && ref( $self->custom_request_handler() ) eq 'CODE' ) {
+    if ( $self->_has_custom_request_handler()
+        && ref( $self->custom_request_handler() ) eq 'CODE' ) {
         $self->_set_custom_request_handler_result(
             $self->custom_request_handler()->($mech) );
     }
