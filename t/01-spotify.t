@@ -56,7 +56,7 @@ $obj->custom_request_handler(
     sub {
         my $m = shift;
         if ( $m->status() == 401 ) {
-            return 1;
+            return 2;
         }
     }
 );
@@ -66,7 +66,7 @@ $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
 ok( is_valid_json( $result, 'album' ), 'album' );
 
 ok(
-    $obj->custom_request_handler_result() == 1,
+    $obj->custom_request_handler_result() == 2,
     'custom_request_handler_result'
 );
 
