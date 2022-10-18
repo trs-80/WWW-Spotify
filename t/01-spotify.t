@@ -52,11 +52,41 @@ ok( is_valid_json($result), 'search' );
 
 #------------------#
 
+$obj->request_custom_handler(
+    sub { my $m = shift;
+        if ($m->status() == 401) {
+            return 1;
+        }
+    }
+);
+
 $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
 
 ok( is_valid_json( $result, 'album' ), 'album' );
 
+ok( $obj->request_custom_handler_result() == 1, 'request_custom_handler_result' );
+
 show_and_pause($result);
+
+#------------------#
+
+$obj->check_response(1);
+
+eval {
+    $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
+};
+
+if ($@) {
+    ok( 1 , 'check_response');
+}
+
+#ok( is_valid_json( $result, 'album' ), 'album' );
+
+#ok( $obj->request_custom_handler_result() == 1, 'request_custom_handler_result' );
+
+show_and_pause($result);
+
+$obj->check_response(0);
 
 #------------------#
 
