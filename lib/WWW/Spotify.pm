@@ -450,7 +450,7 @@ sub send_get_request {
             $self->request_custom_handler()->($mech) );
     }
 
-    # the original code did not provide adequate bulit in validation
+    # the original code did not provide adequate built in validation
     # of the response for an API call.
     # Adding a new method (check_response) with a deault of 0 to avoid
     # breaking/changing
