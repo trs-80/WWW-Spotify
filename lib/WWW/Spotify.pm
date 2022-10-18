@@ -1349,7 +1349,7 @@ requests if you prefer to manage error conditions without dying.
 $spotify->check_response(1);
 
 eval {
-    # run assuming you do NOT have proper authenication setup
+    # run assuming you do NOT have proper authentication setup
     $result = $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
 };
 

@@ -7,7 +7,7 @@
 - Added response_content_type
 - Added response_status
 
-0.011
+0.011    2022-10-18 10:10:00Z
 - Change useragent base class from WWW::Mechanize to LWP::UserAgent (GH#13)
   (Olaf Alders)
 - Tidy imports and drop support for perl 5.8 (GH#12) (Olaf Alders)
