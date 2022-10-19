@@ -119,12 +119,6 @@ has 'auto_json_decode' => (
     default => 0
 );
 
-has 'auto_xml_decode' => (
-    is      => 'rw',
-    isa     => Int,
-    default => 0
-);
-
 has 'last_result' => (
     is      => 'rw',
     isa     => Str,
@@ -354,7 +348,7 @@ sub send_get_request {
     }
 
     if ( exists $attributes->{format}
-        && $attributes->{format} =~ /json|xml|xspf|jsonp/ ) {
+        && $attributes->{format} =~ /json|jsonp/ ) {
         $self->result_format( $attributes->{format} );
         delete $attributes->{format};
     }
@@ -456,7 +450,7 @@ sub send_get_request {
     # breaking/changing
     # existing code using older versions of this module.
     # verify the status and content_type of the response
-    if (   $self->response_content_type() =~ /application\/(json|xml)/i
+    if (   $self->response_content_type() =~ /application\/json/i
         && $self->response_status() != HTTP_OK ) {
         warn "content type is ", $self->response_content_type(), "\n"
             if $self->debug();
@@ -506,16 +500,8 @@ sub format_results {
         return decode_json $content;
     }
 
-    if ( $self->auto_xml_decode && $self->result_format eq 'xml' ) {
-
-        # FIX ME
-        require XML::Simple;
-        my $xs = XML::Simple->new();
-        return $xs->XMLin($content);
-    }
-
-    # results are not altered in this case and would be either
-    # json or xml instead of a perl data structure
+    # results are not altered in this case and would be
+    # json instead of a perl data structure
 
     return $content;
 }
@@ -1139,12 +1125,6 @@ When true results will be returned as JSON instead of a perl data structure
 
     $spotify->auto_json_decode(1);
 
-=head2 auto_xml_decode
-
-When true results will be returned as JSON instead of a perl data structure
-
-    $spotify->auto_xml_decode(1);
-
 =head2 get
 
 Returns a specific item or array of items from the JSON result of the
@@ -1314,7 +1294,7 @@ returns the response code for the last request made
 
 =head2 response_content_type
 
-returns the response type for the last request made, helpful to verify JSON/XML
+returns the response type for the last request made, helpful to verify JSON
 
     my $content_type = $spotify->response_content_type();
 

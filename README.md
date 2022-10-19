@@ -67,10 +67,10 @@ version 0.011
 
     # $link is an arrayfef of the all the playlist urls
 
-    foreach my $for_tracks (@{$link}) {
+    foreach my $playlist (@{$link}) {
         # make sure the links look valid
-        next if $for_tracks !~ /spotify\/play/;
-        $spotify->query_full_url($for_tracks,1);
+        next if $playlist !~ /playlists/;
+        $spotify->query_full_url($playlist,1);
         my $pl_name = $spotify->get('name');
         my $tracks  = $spotify->get('tracks.items[*].track.id');
         foreach my $track (@{$tracks}) {
@@ -112,12 +112,6 @@ debugging information, you can do something like this:
 When true results will be returned as JSON instead of a perl data structure
 
     $spotify->auto_json_decode(1);
-
-## auto\_xml\_decode
-
-When true results will be returned as JSON instead of a perl data structure
-
-    $spotify->auto_xml_decode(1);
 
 ## get
 
@@ -288,7 +282,7 @@ returns the response code for the last request made
 
 ## response\_content\_type
 
-returns the response type for the last request made, helpful to verify JSON/XML
+returns the response type for the last request made, helpful to verify JSON
 
     my $content_type = $spotify->response_content_type();
 
