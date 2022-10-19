@@ -6,6 +6,7 @@
 - Added custom_request_handler_result
 - Added response_content_type
 - Added response_status
+- Removed all XML related code - Spotify API no longer supports XML
 
 0.011    2022-10-18 10:10:00Z
 - Change useragent base class from WWW::Mechanize to LWP::UserAgent (GH#13)
