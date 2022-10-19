@@ -2,15 +2,13 @@
 
 WWW::Spotify - Spotify Web API Wrapper
 
-[![Build Status](https://travis-ci.org/trs-80/WWW-Spotify.png?branch=master)](https://travis-ci.org/trs-80/WWW-Spotify)
-
 # VERSION
 
-version 0.010
+version 0.011
 
 # SYNOPSIS
 
-    use WWW::Spotify;
+    use WWW::Spotify ();
 
     my $spotify = WWW::Spotify->new();
 
@@ -94,18 +92,18 @@ of the screen as you mouse over an element.
 
 ## ua
 
-You may provide your own [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize) object to the constructor.  You may
-want to set autocheck off.  To get extra debugging information, you can do
-something like this:
+You may provide your own user agent object to the constructor.  This should be
+a [LWP:UserAgent](LWP:UserAgent) or a subclass of it, like [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize). If you are
+using [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize), you may want to set autocheck off.  To get extra
+debugging information, you can do something like this:
 
     use LWP::ConsoleLogger::Easy qw( debug_ua );
-    use WWW::Mechanize;
-    use WWW::Spotify;
+    use WWW::Mechanize ();
+    use WWW::Spotify ();
 
     my $mech = WWW::Mechanize->new( autocheck => 0 );
     debug_ua( $mech );
-
-    my $ua = WWW::Mechanize->new( ua => $ua );
+    my $spotify = WWW::Spotify->new( ua => $mech )
 
 # METHODS
 
@@ -282,11 +280,70 @@ needed for requests that require OAuth, see Spotify API documentation for more i
 
 Can also be set via environment variable, SPOTIFY\_CLIENT\_SECRET
 
+## response\_status
+
+returns the response code for the last request made
+
+    my $status = $spotify->response_status();
+
+## response\_content\_type
+
+returns the response type for the last request made, helpful to verify JSON/XML
+
+    my $content_type = $spotify->response_content_type();
+
+## custom\_request\_handler
+
+pass a callback subroutine to this method that will be run at the end of the
+request prior to die\_on\_response\_error, if enabled
+
+    # $m is the WWW::Mechanize object
+    $spotify->custom_request_handler(
+        sub { my $m = shift;
+            if ($m->status() == 401) {
+                return 1;
+            }
+        }
+    );
+
+## custom\_request\_handler\_result
+
+returns the result of the most recent execution of the custom\_request\_handler callback
+this allows you to determine the success/failure criteria of your callback
+
+    my $callback_result = $spotify->custom_request_handler_result();
+
+## die\_on\_response\_error
+
+Boolean - default 0
+
+added to provide minimal automated checking of responses
+
+$spotify->die\_on\_response\_error(1);
+
+eval {
+    # run assuming you do NOT have proper authentication setup
+    $result = $spotify->album('0sNOF9WDwhWunNAHPD3Baj');
+};
+
+if ($@) {
+    warn $spotify->last\_error();
+}
+
+## last\_error
+
+returns last\_error (if applicable) from the most recent request.
+reset to empty string on each request
+
+    print $spotify->last_error() , "\n";
+
 # THANKS
 
 Paul Lamere at The Echo Nest / Spotify
 
 All the great Perl community members that keep Perl fun
+
+Olaf Alders for all his help and support in maintaining this module
 
 # AUTHOR
 

@@ -161,15 +161,13 @@ has 'ua' => (
 );
 
 has 'response_status' => (
-    is      => 'rw',
-    isa     => Str,
-    default => q{}
+    is  => 'rw',
+    isa => Int
 );
 
 has 'response_content_type' => (
-    is      => 'rw',
-    isa     => Str,
-    default => q{}
+    is  => 'rw',
+    isa => Str
 );
 
 has 'custom_request_handler' => (
@@ -179,12 +177,11 @@ has 'custom_request_handler' => (
 );
 
 has 'custom_request_handler_result' => (
-    is      => 'ro',
-    default => '',
-    writer  => '_set_custom_request_handler_result'
+    is     => 'ro',
+    writer => '_set_custom_request_handler_result'
 );
 
-has 'check_response' => (
+has 'die_on_response_error' => (
     is      => 'rw',
     isa     => Bool,
     default => 0
@@ -455,7 +452,7 @@ sub send_get_request {
 
     # the original code did not provide adequate built in validation
     # of the response for an API call.
-    # Adding a new method (check_response) with a default of 0 to avoid
+    # Adding a new method (die_on_response_error) with a default of 0 to avoid
     # breaking/changing
     # existing code using older versions of this module.
     # verify the status and content_type of the response
@@ -468,7 +465,7 @@ sub send_get_request {
                 . ") examine last_result for details" );
     }
 
-    if ( $self->check_response() == 1 && $self->last_error ne '' ) {
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
@@ -1324,7 +1321,7 @@ returns the response type for the last request made, helpful to verify JSON/XML
 =head2 custom_request_handler
 
 pass a callback subroutine to this method that will be run at the end of the
-request prior to check_response, if enabled
+request prior to die_on_response_error, if enabled
 
     # $m is the WWW::Mechanize object
     $spotify->custom_request_handler(
@@ -1342,14 +1339,13 @@ this allows you to determine the success/failure criteria of your callback
 
     my $callback_result = $spotify->custom_request_handler_result();
 
-=head2 check_response
+=head2 die_on_response_error
 
-Boolean
+Boolean - default 0
 
-this has been introduced to provide automated validity checking on responses this method will die on error so consider doing an eval
-requests if you prefer to manage error conditions without dying.
+added to provide minimal automated checking of responses
 
-$spotify->check_response(1);
+$spotify->die_on_response_error(1);
 
 eval {
     # run assuming you do NOT have proper authentication setup

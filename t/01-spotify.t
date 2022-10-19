@@ -84,21 +84,17 @@ show_and_pause($result);
 
 #------------------#
 
-$obj->check_response(1);
+$obj->die_on_response_error(1);
 
 eval { $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj'); };
 
 if ($@) {
-    ok( 1, 'check_response' );
+    ok( 1, 'die_on_response_error' );
 }
-
-#ok( is_valid_json( $result, 'album' ), 'album' );
-
-#ok( $obj->custom_request_handler_result() == 1, 'custom_request_handler_result' );
 
 show_and_pause($result);
 
-$obj->check_response(0);
+$obj->die_on_response_error(0);
 
 #------------------#
 

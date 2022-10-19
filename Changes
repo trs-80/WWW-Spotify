@@ -1,7 +1,7 @@
 {{$NEXT}}
 - Improved options for error handling (GH#11)
 - Improved last_error
-- Added check_response
+- Added die_on_response_error
 - Added custom_request_handler
 - Added custom_request_handler_result
 - Added response_content_type
