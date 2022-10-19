@@ -1,3 +1,5 @@
+{{$NEXT}}
+
 0.012     2022-10-19 16:30:23Z
 - Improved options for error handling (GH#11)
 - Improved last_error
