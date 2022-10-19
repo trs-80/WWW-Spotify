@@ -319,7 +319,7 @@ Boolean - default 0
 
 added to provide minimal automated checking of responses
 
-$spotify->die\_on\_response\_error(1);
+    $spotify->die_on_response_error(1);
 
 eval {
     # run assuming you do NOT have proper authentication setup
