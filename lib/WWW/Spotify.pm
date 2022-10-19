@@ -1103,10 +1103,10 @@ of the screen as you mouse over an element.
 
     # $link is an arrayfef of the all the playlist urls
 
-    foreach my $for_tracks (@{$link}) {
+    foreach my $playlist (@{$link}) {
         # make sure the links look valid
-        next if $for_tracks !~ /spotify\/play/;
-        $spotify->query_full_url($for_tracks,1);
+        next if $playlist !~ /playlists/;
+        $spotify->query_full_url($playlist,1);
         my $pl_name = $spotify->get('name');
         my $tracks  = $spotify->get('tracks.items[*].track.id');
         foreach my $track (@{$tracks}) {
