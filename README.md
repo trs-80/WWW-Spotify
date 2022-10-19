@@ -4,7 +4,7 @@ WWW::Spotify - Spotify Web API Wrapper
 
 # VERSION
 
-version 0.011
+version 0.012
 
 # SYNOPSIS
 
