@@ -1,15 +1,13 @@
 ---
-name: dzil build and test
+name: test
 
 on:
   push:
     branches:
-      - '*'
+      - 'master'
   pull_request:
     branches:
       - '*'
-  schedule:
-    - cron: '15 4 * * 0'  # Every Sunday morning
   workflow_dispatch:
 
 jobs:
@@ -32,7 +30,6 @@ jobs:
         with:
           name: build_dir
           path: build_dir
-        if: ${{ github.actor != 'nektos/act' }}
   coverage-job:
     needs: build-job
     runs-on: ubuntu-20.04
@@ -45,9 +42,11 @@ jobs:
           name: build_dir
           path: .
       - name: Install deps and test
-        run: cpan-install-dist-deps && test-dist
+        run: auto-build-and-test-dist
         env:
+          AUTOMATED_TESTING: 1
           CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
+          EXTENDED_TESTING: 1
   ubuntu-test-job:
     needs: build-job
     runs-on: 'ubuntu-latest'
