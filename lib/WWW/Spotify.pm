@@ -1377,7 +1377,39 @@ will pass authentication (OAuth) on all requests when set
 
 =head2 user
 
-equivalent to /user
+equivalent to /v1/users/{user_id}
+
+    $spotify->user('glennpmcdonald');
+
+=head2 get_playlist
+
+equivalent to /v1/playlists/{playlist_id}
+
+    $spotify->get_playlist('37i9dQZF1DXcBWIGoYBM5M');
+
+=head2 get_playlist_items
+
+equivalent to /v1/playlists/{playlist_id}/tracks
+
+    $spotify->get_playlist_items('37i9dQZF1DXcBWIGoYBM5M', { limit => 10, offset => 0 });
+
+=head2 create_playlist
+
+equivalent to /v1/users/{user_id}/playlists
+
+    $spotify->create_playlist('user_id', 'My New Playlist', 1, 'A description of my playlist');
+
+=head2 get_current_user_playlists
+
+equivalent to /v1/me/playlists
+
+    $spotify->get_current_user_playlists({ limit => 20, offset => 0 });
+
+=head2 add_items_to_playlist
+
+equivalent to /v1/playlists/{playlist_id}/tracks
+
+    $spotify->add_items_to_playlist('playlist_id', ['spotify:track:4iV5W9uYEdYUVa79Axb7Rh', 'spotify:track:1301WleyT98MSxVHPZCA6M'], 0);
 
 =head2 oauth_client_id
 
