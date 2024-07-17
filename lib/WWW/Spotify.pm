@@ -237,6 +237,13 @@ my %api_call_options = (
         params => ['ids']
     },
 
+    '/v1/browse/categories' => {
+        info   => 'Get Several Browse Categories',
+        type   => 'GET',
+        method => 'get_categories',
+        params => ['country', 'locale', 'limit', 'offset']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1687,6 +1694,18 @@ sub check_users_saved_audiobooks {
     );
 }
 
+sub get_categories {
+    my ($self, %params) = @_;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_categories',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1702,6 +1721,17 @@ equivalent to GET /v1/me/audiobooks/contains
 or
 
     $spotify->check_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
+=head2 get_categories
+
+equivalent to GET /v1/browse/categories
+
+    $spotify->get_categories(
+        country => 'US',
+        locale => 'en_US',
+        limit => 20,
+        offset => 0
+    );
 
 =head1 DESCRIPTION
 
