@@ -209,6 +209,13 @@ my %api_call_options = (
         params => ['id', 'market', 'limit', 'offset']
     },
 
+    '/v1/me/audiobooks' => {
+        info   => 'Get User\'s Saved Audiobooks',
+        type   => 'GET',
+        method => 'get_users_saved_audiobooks',
+        params => ['limit', 'offset']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1589,6 +1596,22 @@ sub get_audiobook_chapters {
     return $self->send_get_request(
         {
             method => 'get_audiobook_chapters',
+            params => $params,
+            client_auth_required => 1
+        }
+    );
+}
+
+sub get_users_saved_audiobooks {
+    my ($self, $limit, $offset) = @_;
+    
+    my $params = {};
+    $params->{limit} = $limit if $limit;
+    $params->{offset} = $offset if defined $offset;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_users_saved_audiobooks',
             params => $params,
             client_auth_required => 1
         }
