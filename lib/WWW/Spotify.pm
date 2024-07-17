@@ -201,21 +201,21 @@ my %api_call_options = (
         info   => 'Get several audiobooks',
         type   => 'GET',
         method => 'get_several_audiobooks',
-        params => ['ids', 'market']
+        params => [ 'ids', 'market' ]
     },
 
     '/v1/audiobooks/{id}/chapters' => {
         info   => 'Get Audiobook Chapters',
         type   => 'GET',
         method => 'get_audiobook_chapters',
-        params => ['id', 'market', 'limit', 'offset']
+        params => [ 'id', 'market', 'limit', 'offset' ]
     },
 
     '/v1/me/audiobooks' => {
         info   => 'Get User\'s Saved Audiobooks',
         type   => 'GET',
         method => 'get_users_saved_audiobooks',
-        params => ['limit', 'offset']
+        params => [ 'limit', 'offset' ]
     },
 
     '/v1/me/audiobooks' => {
@@ -243,7 +243,7 @@ my %api_call_options = (
         info   => 'Get User\'s Saved Shows',
         type   => 'GET',
         method => 'get_users_saved_shows',
-        params => ['limit', 'offset']
+        params => [ 'limit', 'offset' ]
     },
 
     '/v1/me/shows' => {
@@ -264,28 +264,28 @@ my %api_call_options = (
         info   => 'Get Several Browse Categories',
         type   => 'GET',
         method => 'get_categories',
-        params => ['country', 'locale', 'limit', 'offset']
+        params => [ 'country', 'locale', 'limit', 'offset' ]
     },
 
     '/v1/browse/categories/{category_id}' => {
         info   => 'Get Single Browse Category',
         type   => 'GET',
         method => 'get_category',
-        params => ['category_id', 'locale']
+        params => [ 'category_id', 'locale' ]
     },
 
     '/v1/chapters/{id}' => {
         info   => 'Get a Chapter',
         type   => 'GET',
         method => 'get_chapter',
-        params => ['id', 'market']
+        params => [ 'id', 'market' ]
     },
 
     '/v1/chapters' => {
         info   => 'Get Several Chapters',
         type   => 'GET',
         method => 'get_several_chapters',
-        params => ['ids', 'market']
+        params => [ 'ids', 'market' ]
     },
 
     '/v1/recommendations/available-genre-seeds' => {
@@ -311,14 +311,14 @@ my %api_call_options = (
         info   => 'Get Several Shows',
         type   => 'GET',
         method => 'get_several_shows',
-        params => ['ids', 'market']
+        params => [ 'ids', 'market' ]
     },
 
     '/v1/shows/{id}/episodes' => {
         info   => 'Get Show Episodes',
         type   => 'GET',
         method => 'get_show_episodes',
-        params => ['id', 'market', 'limit', 'offset']
+        params => [ 'id', 'market', 'limit', 'offset' ]
     },
 
     '/v1/albums?ids={ids}' => {
@@ -392,42 +392,43 @@ my %api_call_options = (
         info   => 'Get Recommendations',
         type   => 'GET',
         method => 'get_recommendations',
-        params => ['seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market']
+        params =>
+          [ 'seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market' ]
     },
 
     '/v1/me/following' => {
         info   => 'Get Followed Artists',
         type   => 'GET',
         method => 'get_followed_artists',
-        params => ['type', 'after', 'limit']
+        params => [ 'type', 'after', 'limit' ]
     },
 
     '/v1/me/following' => {
         info   => 'Follow Artists or Users',
         type   => 'PUT',
         method => 'follow_artists_or_users',
-        params => ['type', 'ids']
+        params => [ 'type', 'ids' ]
     },
 
     '/v1/me/following' => {
         info   => 'Unfollow Artists or Users',
         type   => 'DELETE',
         method => 'unfollow_artists_or_users',
-        params => ['type', 'ids']
+        params => [ 'type', 'ids' ]
     },
 
     '/v1/me/following/contains' => {
         info   => 'Check if Current User Follows Artists or Users',
         type   => 'GET',
         method => 'check_if_user_follows_artists_or_users',
-        params => ['type', 'ids']
+        params => [ 'type', 'ids' ]
     },
 
     '/v1/playlists/{playlist_id}/followers/contains' => {
         info   => 'Check if Current User Follows Playlist',
         type   => 'GET',
         method => 'check_if_user_follows_playlist',
-        params => ['playlist_id', 'ids']
+        params => [ 'playlist_id', 'ids' ]
     },
 
     '/v1/albums/{id}/tracks' => {
@@ -668,9 +669,9 @@ sub send_delete_request {
             $self->custom_request_handler()->($mech) );
     }
 
-    if ( $self->response_status() != HTTP_OK )
-    {
-        warn "Delete request failed with status ", $self->response_status(), "\n"
+    if ( $self->response_status() != HTTP_OK ) {
+        warn "Delete request failed with status ", $self->response_status(),
+          "\n"
           if $self->debug();
         $self->last_error( "Delete request failed, status("
               . $self->response_status()
@@ -735,8 +736,7 @@ sub send_put_request {
             $self->custom_request_handler()->($mech) );
     }
 
-    if ( $self->response_status() != HTTP_NO_CONTENT )
-    {
+    if ( $self->response_status() != HTTP_NO_CONTENT ) {
         warn "Put request failed with status ", $self->response_status(), "\n"
           if $self->debug();
         $self->last_error( "Put request failed, status("
@@ -1483,11 +1483,11 @@ sub add_items_to_playlist {
 
 sub remove_user_saved_tracks {
     my ( $self, $ids ) = @_;
-    
+
     if ( ref($ids) eq 'ARRAY' ) {
         $ids = join_ids($ids);
     }
-    
+
     return $self->send_delete_request(
         {
             method => 'remove_user_saved_tracks',
@@ -1498,15 +1498,15 @@ sub remove_user_saved_tracks {
 
 sub check_users_saved_tracks {
     my ( $self, $ids ) = @_;
-    
+
     if ( ref($ids) eq 'ARRAY' ) {
         $ids = join_ids($ids);
     }
-    
+
     return $self->send_get_request(
         {
-            method => 'check_users_saved_tracks',
-            params => { 'ids' => $ids },
+            method               => 'check_users_saved_tracks',
+            params               => { 'ids' => $ids },
             client_auth_required => 1
         }
     );
@@ -1514,15 +1514,15 @@ sub check_users_saved_tracks {
 
 sub get_several_tracks_audio_features {
     my ( $self, $ids ) = @_;
-    
+
     if ( ref($ids) eq 'ARRAY' ) {
         $ids = join_ids($ids);
     }
-    
+
     return $self->send_get_request(
         {
-            method => 'get_several_tracks_audio_features',
-            params => { 'ids' => $ids },
+            method               => 'get_several_tracks_audio_features',
+            params               => { 'ids' => $ids },
             client_auth_required => 1
         }
     );
@@ -1530,11 +1530,11 @@ sub get_several_tracks_audio_features {
 
 sub get_track_audio_features {
     my ( $self, $id ) = @_;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_track_audio_features',
-            params => { 'id' => $id },
+            method               => 'get_track_audio_features',
+            params               => { 'id' => $id },
             client_auth_required => 1
         }
     );
@@ -1542,50 +1542,51 @@ sub get_track_audio_features {
 
 sub get_track_audio_analysis {
     my ( $self, $id ) = @_;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_track_audio_analysis',
-            params => { 'id' => $id },
+            method               => 'get_track_audio_analysis',
+            params               => { 'id' => $id },
             client_auth_required => 1
         }
     );
 }
 
 sub get_recommendations {
-    my ($self, %params) = @_;
-    
+    my ( $self, %params ) = @_;
+
     return $self->send_get_request(
         {
-            method => 'get_recommendations',
-            params => \%params,
+            method               => 'get_recommendations',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_followed_artists {
-    my ($self, %params) = @_;
-    
+    my ( $self, %params ) = @_;
+
     # Ensure 'type' is set to 'artist' as it's the only supported value
     $params{type} = 'artist';
-    
+
     return $self->send_get_request(
         {
-            method => 'get_followed_artists',
-            params => \%params,
+            method               => 'get_followed_artists',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub follow_artists_or_users {
-    my ($self, $type, $ids) = @_;
-    
-    die "Type must be 'artist' or 'user'" unless $type eq 'artist' or $type eq 'user';
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+    my ( $self, $type, $ids ) = @_;
+
+    die "Type must be 'artist' or 'user'"
+      unless $type eq 'artist' or $type eq 'user';
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_put_request(
         {
             method => 'follow_artists_or_users',
@@ -1599,12 +1600,13 @@ sub follow_artists_or_users {
 }
 
 sub unfollow_artists_or_users {
-    my ($self, $type, $ids) = @_;
-    
-    die "Type must be 'artist' or 'user'" unless $type eq 'artist' or $type eq 'user';
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+    my ( $self, $type, $ids ) = @_;
+
+    die "Type must be 'artist' or 'user'"
+      unless $type eq 'artist' or $type eq 'user';
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_delete_request(
         {
             method => 'unfollow_artists_or_users',
@@ -1618,12 +1620,13 @@ sub unfollow_artists_or_users {
 }
 
 sub check_if_user_follows_artists_or_users {
-    my ($self, $type, $ids) = @_;
-    
-    die "Type must be 'artist' or 'user'" unless $type eq 'artist' or $type eq 'user';
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+    my ( $self, $type, $ids ) = @_;
+
+    die "Type must be 'artist' or 'user'"
+      unless $type eq 'artist' or $type eq 'user';
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_get_request(
         {
             method => 'check_if_user_follows_artists_or_users',
@@ -1637,13 +1640,13 @@ sub check_if_user_follows_artists_or_users {
 }
 
 sub check_if_user_follows_playlist {
-    my ($self, $playlist_id, $ids) = @_;
-    
+    my ( $self, $playlist_id, $ids ) = @_;
+
     die "playlist_id is required" unless $playlist_id;
-    die "ids is required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+    die "ids is required"         unless $ids;
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_get_request(
         {
             method => 'check_if_user_follows_playlist',
@@ -1657,52 +1660,52 @@ sub check_if_user_follows_playlist {
 }
 
 sub get_audiobook {
-    my ($self, $id, $market) = @_;
-    
+    my ( $self, $id, $market ) = @_;
+
     die "Audiobook ID is required" unless $id;
-    
+
     my $params = { id => $id };
     $params->{market} = $market if $market;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_audiobook',
-            params => $params,
+            method               => 'get_audiobook',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_several_audiobooks {
-    my ($self, $ids, $market) = @_;
-    
+    my ( $self, $ids, $market ) = @_;
+
     die "Audiobook IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     my $params = { ids => $id_list };
     $params->{market} = $market if $market;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_several_audiobooks',
-            params => $params,
+            method               => 'get_several_audiobooks',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_audiobook_chapters {
-    my ($self, $id, %params) = @_;
-    
+    my ( $self, $id, %params ) = @_;
+
     die "Audiobook ID is required" unless $id;
-    
+
     $params{id} = $id;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_audiobook_chapters',
-            params => \%params,
+            method               => 'get_audiobook_chapters',
+            params               => \%params,
             client_auth_required => 1
         }
     );
@@ -2617,4 +2620,4 @@ Olaf Alders for all his help and support in maintaining this module
 
 =cut
 
-1; # Return true value at the end of the module
+1;    # Return true value at the end of the module
