@@ -1693,6 +1693,16 @@ __END__
 
 # ABSTRACT: Spotify Web API Wrapper
 
+=head2 check_users_saved_audiobooks
+
+equivalent to GET /v1/me/audiobooks/contains
+
+    $spotify->check_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
+
+or
+
+    $spotify->check_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
 =head1 DESCRIPTION
 
 Wrapper for the Spotify Web API.
