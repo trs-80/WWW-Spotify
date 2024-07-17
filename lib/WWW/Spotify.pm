@@ -188,6 +188,13 @@ my %api_call_options = (
         method => 'album'
     },
 
+    '/v1/audiobooks/{id}' => {
+        info   => 'Get an audiobook',
+        type   => 'GET',
+        method => 'get_audiobook',
+        params => ['market']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1514,6 +1521,23 @@ sub check_if_user_follows_playlist {
                 playlist_id => $playlist_id,
                 ids         => $id_list
             },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub get_audiobook {
+    my ($self, $id, $market) = @_;
+    
+    die "Audiobook ID is required" unless $id;
+    
+    my $params = { id => $id };
+    $params->{market} = $market if $market;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_audiobook',
+            params => $params,
             client_auth_required => 1
         }
     );
