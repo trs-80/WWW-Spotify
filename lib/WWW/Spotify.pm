@@ -249,6 +249,11 @@ my %api_call_options = (
         type   => 'GET',
         method => 'get_track_audio_features'
     },
+    '/v1/audio-analysis/{id}' => {
+        info   => 'Get Track\'s Audio Analysis',
+        type   => 'GET',
+        method => 'get_track_audio_analysis'
+    },
 
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
@@ -1291,6 +1296,18 @@ sub get_track_audio_features {
     );
 }
 
+sub get_track_audio_analysis {
+    my ( $self, $id ) = @_;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_track_audio_analysis',
+            params => { 'id' => $id },
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1604,6 +1621,12 @@ equivalent to /v1/audio-features
 equivalent to /v1/audio-features/{id}
 
     $spotify->get_track_audio_features('4iV5W9uYEdYUVa79Axb7Rh');
+
+=head2 get_track_audio_analysis
+
+equivalent to /v1/audio-analysis/{id}
+
+    $spotify->get_track_audio_analysis('4iV5W9uYEdYUVa79Axb7Rh');
 
 =head2 oauth_client_id
 
