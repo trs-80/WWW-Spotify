@@ -1855,6 +1855,16 @@ or
 
     $spotify->unfollow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
 
+=head2 check_if_user_follows_artists_or_users
+
+equivalent to GET /v1/me/following/contains
+
+    $spotify->check_if_user_follows_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
+
+or
+
+    $spotify->check_if_user_follows_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
