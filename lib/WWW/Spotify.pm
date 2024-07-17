@@ -237,6 +237,13 @@ my %api_call_options = (
         params => ['ids']
     },
 
+    '/v1/me/shows' => {
+        info   => 'Get User\'s Saved Shows',
+        type   => 'GET',
+        method => 'get_users_saved_shows',
+        params => ['limit', 'offset']
+    },
+
     '/v1/browse/categories' => {
         info   => 'Get Several Browse Categories',
         type   => 'GET',
@@ -1748,6 +1755,18 @@ sub check_users_saved_audiobooks {
     );
 }
 
+sub get_users_saved_shows {
+    my ($self, %params) = @_;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_users_saved_shows',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
 sub get_categories {
     my ($self, %params) = @_;
     
@@ -1943,6 +1962,14 @@ equivalent to GET /v1/me/audiobooks/contains
 or
 
     $spotify->check_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
+=head2 get_users_saved_shows
+
+equivalent to GET /v1/me/shows
+
+    $spotify->get_users_saved_shows(limit => 20, offset => 0);
+
+This method retrieves a list of shows saved in the current Spotify user's library. Optional parameters can be used to limit the number of shows returned.
 
 =head2 get_categories
 
