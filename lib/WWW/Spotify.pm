@@ -244,6 +244,13 @@ my %api_call_options = (
         params => ['country', 'locale', 'limit', 'offset']
     },
 
+    '/v1/browse/categories/{category_id}' => {
+        info   => 'Get Single Browse Category',
+        type   => 'GET',
+        method => 'get_category',
+        params => ['category_id', 'locale']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1706,6 +1713,22 @@ sub get_categories {
     );
 }
 
+sub get_category {
+    my ($self, $category_id, %params) = @_;
+    
+    die "Category ID is required" unless $category_id;
+    
+    $params{category_id} = $category_id;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_category',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1732,6 +1755,12 @@ equivalent to GET /v1/browse/categories
         limit => 20,
         offset => 0
     );
+
+=head2 get_category
+
+equivalent to GET /v1/browse/categories/{category_id}
+
+    $spotify->get_category('dinner', locale => 'en_US');
 
 =head1 DESCRIPTION
 
