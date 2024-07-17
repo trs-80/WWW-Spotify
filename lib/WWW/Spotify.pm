@@ -2011,6 +2011,12 @@ or with market parameter:
 
     $spotify->get_audiobook('7iHfbu1YPACw6oZPAFJtqe', 'US');
 
+=head2 get_users_saved_audiobooks
+
+equivalent to GET /v1/me/audiobooks
+
+    $spotify->get_users_saved_audiobooks(20, 0);
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
