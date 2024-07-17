@@ -244,6 +244,11 @@ my %api_call_options = (
         type   => 'GET',
         method => 'get_several_tracks_audio_features'
     },
+    '/v1/audio-features/{id}' => {
+        info   => 'Get Track\'s Audio Features',
+        type   => 'GET',
+        method => 'get_track_audio_features'
+    },
 
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
@@ -1269,6 +1274,18 @@ sub get_several_tracks_audio_features {
         {
             method => 'get_several_tracks_audio_features',
             params => { 'ids' => $ids },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub get_track_audio_features {
+    my ( $self, $id ) = @_;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_track_audio_features',
+            params => { 'id' => $id },
             client_auth_required => 1
         }
     );
