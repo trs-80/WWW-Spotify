@@ -284,6 +284,13 @@ my %api_call_options = (
         params => ['market']
     },
 
+    '/v1/shows' => {
+        info   => 'Get Several Shows',
+        type   => 'GET',
+        method => 'get_several_shows',
+        params => ['ids', 'market']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1835,6 +1842,25 @@ sub get_show {
     );
 }
 
+sub get_several_shows {
+    my ($self, $ids, $market) = @_;
+    
+    die "Show IDs are required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    my $params = { ids => $id_list };
+    $params->{market} = $market if $market;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_several_shows',
+            params => $params,
+            client_auth_required => 1
+        }
+    );
+}
+
 =head2 get_available_genre_seeds
 
 equivalent to GET /v1/recommendations/available-genre-seeds
@@ -1858,6 +1884,18 @@ equivalent to GET /v1/shows/{id}
     $spotify->get_show('38bS44xjbVVZ3No3ByF1dJ', 'US');
 
 This method retrieves Spotify catalog information for a single show identified by its unique Spotify ID.
+
+=head2 get_several_shows
+
+equivalent to GET /v1/shows
+
+    $spotify->get_several_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ'], 'US');
+
+or
+
+    $spotify->get_several_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ', 'US');
+
+This method retrieves Spotify catalog information for several shows based on their Spotify IDs.
 
 1;
 
