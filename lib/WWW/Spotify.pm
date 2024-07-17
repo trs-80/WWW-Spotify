@@ -230,6 +230,13 @@ my %api_call_options = (
         params => ['ids']
     },
 
+    '/v1/me/audiobooks/contains' => {
+        info   => 'Check User\'s Saved Audiobooks',
+        type   => 'GET',
+        method => 'check_users_saved_audiobooks',
+        params => ['ids']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1658,6 +1665,22 @@ sub remove_users_saved_audiobooks {
     return $self->send_delete_request(
         {
             method => 'remove_users_saved_audiobooks',
+            params => { ids => $id_list },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub check_users_saved_audiobooks {
+    my ($self, $ids) = @_;
+    
+    die "Audiobook IDs are required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    return $self->send_get_request(
+        {
+            method => 'check_users_saved_audiobooks',
             params => { ids => $id_list },
             client_auth_required => 1
         }
