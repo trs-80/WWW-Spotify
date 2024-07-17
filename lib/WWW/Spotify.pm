@@ -271,6 +271,12 @@ my %api_call_options = (
         method => 'get_available_genre_seeds'
     },
 
+    '/v1/markets' => {
+        info   => 'Get Available Markets',
+        type   => 'GET',
+        method => 'get_available_markets'
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1794,6 +1800,17 @@ sub get_available_genre_seeds {
     );
 }
 
+sub get_available_markets {
+    my ($self) = @_;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_available_markets',
+            client_auth_required => 1
+        }
+    );
+}
+
 =head2 get_available_genre_seeds
 
 equivalent to GET /v1/recommendations/available-genre-seeds
@@ -1801,6 +1818,14 @@ equivalent to GET /v1/recommendations/available-genre-seeds
     $spotify->get_available_genre_seeds();
 
 This method retrieves a list of available genres seed parameter values for recommendations.
+
+=head2 get_available_markets
+
+equivalent to GET /v1/markets
+
+    $spotify->get_available_markets();
+
+This method retrieves the list of markets where Spotify is available.
 
 1;
 
