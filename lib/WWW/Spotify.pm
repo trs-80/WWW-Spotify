@@ -244,6 +244,13 @@ my %api_call_options = (
         params => ['limit', 'offset']
     },
 
+    '/v1/me/shows' => {
+        info   => 'Save Shows for Current User',
+        type   => 'PUT',
+        method => 'save_shows_for_current_user',
+        params => ['ids']
+    },
+
     '/v1/browse/categories' => {
         info   => 'Get Several Browse Categories',
         type   => 'GET',
@@ -1767,6 +1774,22 @@ sub get_users_saved_shows {
     );
 }
 
+sub save_shows_for_current_user {
+    my ($self, $ids) = @_;
+    
+    die "Show IDs are required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    return $self->send_put_request(
+        {
+            method => 'save_shows_for_current_user',
+            params => { ids => $id_list },
+            client_auth_required => 1
+        }
+    );
+}
+
 sub get_categories {
     my ($self, %params) = @_;
     
@@ -1970,6 +1993,18 @@ equivalent to GET /v1/me/shows
     $spotify->get_users_saved_shows(limit => 20, offset => 0);
 
 This method retrieves a list of shows saved in the current Spotify user's library. Optional parameters can be used to limit the number of shows returned.
+
+=head2 save_shows_for_current_user
+
+equivalent to PUT /v1/me/shows
+
+    $spotify->save_shows_for_current_user(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
+
+or
+
+    $spotify->save_shows_for_current_user('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
+
+This method saves one or more shows to the current user's library.
 
 =head2 get_categories
 
