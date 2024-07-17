@@ -291,6 +291,13 @@ my %api_call_options = (
         params => ['ids', 'market']
     },
 
+    '/v1/shows/{id}/episodes' => {
+        info   => 'Get Show Episodes',
+        type   => 'GET',
+        method => 'get_show_episodes',
+        params => ['id', 'market', 'limit', 'offset']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1861,6 +1868,22 @@ sub get_several_shows {
     );
 }
 
+sub get_show_episodes {
+    my ($self, $id, %params) = @_;
+    
+    die "Show ID is required" unless $id;
+    
+    $params{id} = $id;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_show_episodes',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
 =head2 get_available_genre_seeds
 
 equivalent to GET /v1/recommendations/available-genre-seeds
@@ -1896,6 +1919,14 @@ or
     $spotify->get_several_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ', 'US');
 
 This method retrieves Spotify catalog information for several shows based on their Spotify IDs.
+
+=head2 get_show_episodes
+
+equivalent to GET /v1/shows/{id}/episodes
+
+    $spotify->get_show_episodes('38bS44xjbVVZ3No3ByF1dJ', market => 'US', limit => 10, offset => 5);
+
+This method retrieves Spotify catalog information about a show's episodes. Optional parameters can be used to limit the number of episodes returned.
 
 1;
 
