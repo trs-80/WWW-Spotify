@@ -269,6 +269,13 @@ my %api_call_options = (
         params => ['type', 'after', 'limit']
     },
 
+    '/v1/me/following' => {
+        info   => 'Follow Artists or Users',
+        type   => 'PUT',
+        method => 'follow_artists_or_users',
+        params => ['type', 'ids']
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -510,6 +517,71 @@ sub send_delete_request {
         warn "Delete request failed with status ", $self->response_status(), "\n"
           if $self->debug();
         $self->last_error( "Delete request failed, status("
+              . $self->response_status()
+              . ") examine last_result for details" );
+    }
+
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
+        die $self->last_error();
+    }
+
+    return $self->format_results( $mech->content, $mech->ct(),
+        $mech->status() );
+}
+
+sub send_put_request {
+    my $self       = shift;
+    my $attributes = shift;
+
+    # reset last error
+    $self->last_error(q{});
+
+    my $url  = $self->uri_scheme() . '://' . $self->uri_hostname();
+    my $path = $method_to_uri{ $attributes->{method} };
+
+    if ($path) {
+        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
+        $url .= $path;
+    }
+
+    warn "$url\n" if $self->debug;
+
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = $self->_mech;
+
+    if (   $attributes->{client_auth_required}
+        || $self->force_client_auth() != 0 )
+    {
+        if ( $self->current_access_token() eq q{} ) {
+            warn "Needed to get access token\n" if $self->debug();
+            $self->get_client_credentials();
+        }
+        $mech->add_header(
+            'Authorization' => 'Bearer ' . $self->current_access_token() );
+    }
+
+    my $content =
+      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    $mech->add_header( 'Content-Type' => 'application/json' );
+    $mech->put( $url, Content => $content );
+
+    if ( $self->grab_response_header() == 1 ) {
+        $self->_set_response_headers($mech);
+    }
+
+    $self->response_status( $mech->status() );
+    $self->response_content_type( $mech->content_type() );
+
+    if ( $self->_has_custom_request_handler() ) {
+        $self->_set_custom_request_handler_result(
+            $self->custom_request_handler()->($mech) );
+    }
+
+    if ( $self->response_status() != HTTP_NO_CONTENT )
+    {
+        warn "Put request failed with status ", $self->response_status(), "\n"
+          if $self->debug();
+        $self->last_error( "Put request failed, status("
               . $self->response_status()
               . ") examine last_result for details" );
     }
@@ -1349,6 +1421,25 @@ sub get_followed_artists {
     );
 }
 
+sub follow_artists_or_users {
+    my ($self, $type, $ids) = @_;
+    
+    die "Type must be 'artist' or 'user'" unless $type eq 'artist' or $type eq 'user';
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    return $self->send_put_request(
+        {
+            method => 'follow_artists_or_users',
+            params => {
+                type => $type,
+                ids  => $id_list
+            },
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1691,6 +1782,16 @@ equivalent to /v1/me/following
     );
 
 Note: This method always sets the 'type' parameter to 'artist' as it's the only supported value.
+
+=head2 follow_artists_or_users
+
+equivalent to PUT /v1/me/following
+
+    $spotify->follow_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
+
+or
+
+    $spotify->follow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
 
 =head2 oauth_client_id
 
