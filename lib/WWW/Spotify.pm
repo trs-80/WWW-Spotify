@@ -1949,118 +1949,6 @@ sub get_show_episodes {
     );
 }
 
-=head2 get_available_genre_seeds
-
-equivalent to GET /v1/recommendations/available-genre-seeds
-
-    $spotify->get_available_genre_seeds();
-
-This method retrieves a list of available genres seed parameter values for recommendations.
-
-=head2 get_available_markets
-
-equivalent to GET /v1/markets
-
-    $spotify->get_available_markets();
-
-This method retrieves the list of markets where Spotify is available.
-
-=head2 get_show
-
-equivalent to GET /v1/shows/{id}
-
-    $spotify->get_show('38bS44xjbVVZ3No3ByF1dJ', 'US');
-
-This method retrieves Spotify catalog information for a single show identified by its unique Spotify ID.
-
-=head2 get_several_shows
-
-equivalent to GET /v1/shows
-
-    $spotify->get_several_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ'], 'US');
-
-or
-
-    $spotify->get_several_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ', 'US');
-
-This method retrieves Spotify catalog information for several shows based on their Spotify IDs.
-
-=head2 get_show_episodes
-
-equivalent to GET /v1/shows/{id}/episodes
-
-    $spotify->get_show_episodes('38bS44xjbVVZ3No3ByF1dJ', market => 'US', limit => 10, offset => 5);
-
-This method retrieves Spotify catalog information about a show's episodes. Optional parameters can be used to limit the number of episodes returned.
-
-1;
-
-__END__
-
-# ABSTRACT: Spotify Web API Wrapper
-
-=head2 check_users_saved_audiobooks
-
-equivalent to GET /v1/me/audiobooks/contains
-
-    $spotify->check_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->check_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
-
-=head2 get_users_saved_shows
-
-equivalent to GET /v1/me/shows
-
-    $spotify->get_users_saved_shows(limit => 20, offset => 0);
-
-This method retrieves a list of shows saved in the current Spotify user's library. Optional parameters can be used to limit the number of shows returned.
-
-=head2 save_shows_for_current_user
-
-equivalent to PUT /v1/me/shows
-
-    $spotify->save_shows_for_current_user(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
-
-or
-
-    $spotify->save_shows_for_current_user('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
-
-This method saves one or more shows to the current user's library.
-
-=head2 get_categories
-
-equivalent to GET /v1/browse/categories
-
-    $spotify->get_categories(
-        country => 'US',
-        locale => 'en_US',
-        limit => 20,
-        offset => 0
-    );
-
-=head2 get_category
-
-equivalent to GET /v1/browse/categories/{category_id}
-
-    $spotify->get_category('dinner', locale => 'en_US');
-
-=head2 get_chapter
-
-equivalent to GET /v1/chapters/{id}
-
-    $spotify->get_chapter('0D5wENdkdwbqlrHoaJ9g29', market => 'US');
-
-=head2 get_several_chapters
-
-equivalent to GET /v1/chapters
-
-    $spotify->get_several_chapters(['0IsXVP0JmcB2adSE338GkK', '3ZXb8FKZGU0EHALYX6uCzU', '0D5wENdkdwbqlrHoaJ9g29'], market => 'US');
-
-or
-
-    $spotify->get_several_chapters('0IsXVP0JmcB2adSE338GkK,3ZXb8FKZGU0EHALYX6uCzU,0D5wENdkdwbqlrHoaJ9g29', market => 'US');
 
 =head1 DESCRIPTION
 
@@ -2454,6 +2342,119 @@ or with market parameter:
 equivalent to GET /v1/me/audiobooks
 
     $spotify->get_users_saved_audiobooks(20, 0);
+
+=head2 get_available_genre_seeds
+
+equivalent to GET /v1/recommendations/available-genre-seeds
+
+    $spotify->get_available_genre_seeds();
+
+This method retrieves a list of available genres seed parameter values for recommendations.
+
+=head2 get_available_markets
+
+equivalent to GET /v1/markets
+
+    $spotify->get_available_markets();
+
+This method retrieves the list of markets where Spotify is available.
+
+=head2 get_show
+
+equivalent to GET /v1/shows/{id}
+
+    $spotify->get_show('38bS44xjbVVZ3No3ByF1dJ', 'US');
+
+This method retrieves Spotify catalog information for a single show identified by its unique Spotify ID.
+
+=head2 get_several_shows
+
+equivalent to GET /v1/shows
+
+    $spotify->get_several_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ'], 'US');
+
+or
+
+    $spotify->get_several_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ', 'US');
+
+This method retrieves Spotify catalog information for several shows based on their Spotify IDs.
+
+=head2 get_show_episodes
+
+equivalent to GET /v1/shows/{id}/episodes
+
+    $spotify->get_show_episodes('38bS44xjbVVZ3No3ByF1dJ', market => 'US', limit => 10, offset => 5);
+
+This method retrieves Spotify catalog information about a show's episodes. Optional parameters can be used to limit the number of episodes returned.
+
+1;
+
+__END__
+
+# ABSTRACT: Spotify Web API Wrapper
+
+=head2 check_users_saved_audiobooks
+
+equivalent to GET /v1/me/audiobooks/contains
+
+    $spotify->check_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
+
+or
+
+    $spotify->check_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
+=head2 get_users_saved_shows
+
+equivalent to GET /v1/me/shows
+
+    $spotify->get_users_saved_shows(limit => 20, offset => 0);
+
+This method retrieves a list of shows saved in the current Spotify user's library. Optional parameters can be used to limit the number of shows returned.
+
+=head2 save_shows_for_current_user
+
+equivalent to PUT /v1/me/shows
+
+    $spotify->save_shows_for_current_user(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
+
+or
+
+    $spotify->save_shows_for_current_user('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
+
+This method saves one or more shows to the current user's library.
+
+=head2 get_categories
+
+equivalent to GET /v1/browse/categories
+
+    $spotify->get_categories(
+        country => 'US',
+        locale => 'en_US',
+        limit => 20,
+        offset => 0
+    );
+
+=head2 get_category
+
+equivalent to GET /v1/browse/categories/{category_id}
+
+    $spotify->get_category('dinner', locale => 'en_US');
+
+=head2 get_chapter
+
+equivalent to GET /v1/chapters/{id}
+
+    $spotify->get_chapter('0D5wENdkdwbqlrHoaJ9g29', market => 'US');
+
+=head2 get_several_chapters
+
+equivalent to GET /v1/chapters
+
+    $spotify->get_several_chapters(['0IsXVP0JmcB2adSE338GkK', '3ZXb8FKZGU0EHALYX6uCzU', '0D5wENdkdwbqlrHoaJ9g29'], market => 'US');
+
+or
+
+    $spotify->get_several_chapters('0IsXVP0JmcB2adSE338GkK,3ZXb8FKZGU0EHALYX6uCzU,0D5wENdkdwbqlrHoaJ9g29', market => 'US');
 
 =head2 oauth_client_id
 
