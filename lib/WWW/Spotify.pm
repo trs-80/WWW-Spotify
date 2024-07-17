@@ -277,6 +277,13 @@ my %api_call_options = (
         method => 'get_available_markets'
     },
 
+    '/v1/shows/{id}' => {
+        info   => 'Get a Show',
+        type   => 'GET',
+        method => 'get_show',
+        params => ['market']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1811,6 +1818,23 @@ sub get_available_markets {
     );
 }
 
+sub get_show {
+    my ($self, $id, $market) = @_;
+    
+    die "Show ID is required" unless $id;
+    
+    my $params = { id => $id };
+    $params->{market} = $market if $market;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_show',
+            params => $params,
+            client_auth_required => 1
+        }
+    );
+}
+
 =head2 get_available_genre_seeds
 
 equivalent to GET /v1/recommendations/available-genre-seeds
@@ -1826,6 +1850,14 @@ equivalent to GET /v1/markets
     $spotify->get_available_markets();
 
 This method retrieves the list of markets where Spotify is available.
+
+=head2 get_show
+
+equivalent to GET /v1/shows/{id}
+
+    $spotify->get_show('38bS44xjbVVZ3No3ByF1dJ', 'US');
+
+This method retrieves Spotify catalog information for a single show identified by its unique Spotify ID.
 
 1;
 
