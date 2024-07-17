@@ -262,6 +262,13 @@ my %api_call_options = (
         params => ['seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market']
     },
 
+    '/v1/me/following' => {
+        info   => 'Get Followed Artists',
+        type   => 'GET',
+        method => 'get_followed_artists',
+        params => ['type', 'after', 'limit']
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -1327,6 +1334,21 @@ sub get_recommendations {
     );
 }
 
+sub get_followed_artists {
+    my ($self, %params) = @_;
+    
+    # Ensure 'type' is set to 'artist' as it's the only supported value
+    $params{type} = 'artist';
+    
+    return $self->send_get_request(
+        {
+            method => 'get_followed_artists',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1658,6 +1680,17 @@ equivalent to /v1/recommendations
         limit => 10,
         market => 'ES'
     );
+
+=head2 get_followed_artists
+
+equivalent to /v1/me/following
+
+    $spotify->get_followed_artists(
+        limit => 20,
+        after => '0I2XqVXqHScXjHhk6AYYRe'
+    );
+
+Note: This method always sets the 'type' parameter to 'artist' as it's the only supported value.
 
 =head2 oauth_client_id
 
