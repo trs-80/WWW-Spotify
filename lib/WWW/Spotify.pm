@@ -1819,6 +1819,16 @@ or
 
     $spotify->follow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
 
+=head2 unfollow_artists_or_users
+
+equivalent to DELETE /v1/me/following
+
+    $spotify->unfollow_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
+
+or
+
+    $spotify->unfollow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
