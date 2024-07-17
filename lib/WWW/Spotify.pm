@@ -1520,6 +1520,12 @@ equivalent to /v1/playlists/{playlist_id}/tracks
 
     $spotify->add_items_to_playlist('playlist_id', ['spotify:track:4iV5W9uYEdYUVa79Axb7Rh', 'spotify:track:1301WleyT98MSxVHPZCA6M'], 0);
 
+=head2 remove_user_saved_tracks
+
+equivalent to /v1/me/tracks
+
+    $spotify->remove_user_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
