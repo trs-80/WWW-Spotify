@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 
 use Data::Dumper  qw( Dumper );
 use JSON::MaybeXS qw( decode_json );
