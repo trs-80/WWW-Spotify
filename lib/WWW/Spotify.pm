@@ -227,6 +227,12 @@ my %api_call_options = (
         method => 'add_items_to_playlist'
     },
 
+    '/v1/me/tracks' => {
+        info   => 'Remove User\'s Saved Tracks',
+        type   => 'DELETE',
+        method => 'remove_user_saved_tracks'
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -403,6 +409,71 @@ sub send_post_request {
         warn "content type is ", $self->response_content_type(), "\n"
           if $self->debug();
         $self->last_error( "request failed, status("
+              . $self->response_status()
+              . ") examine last_result for details" );
+    }
+
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
+        die $self->last_error();
+    }
+
+    return $self->format_results( $mech->content, $mech->ct(),
+        $mech->status() );
+}
+
+sub send_delete_request {
+    my $self       = shift;
+    my $attributes = shift;
+
+    # reset last error
+    $self->last_error(q{});
+
+    my $url  = $self->uri_scheme() . '://' . $self->uri_hostname();
+    my $path = $method_to_uri{ $attributes->{method} };
+
+    if ($path) {
+        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
+        $url .= $path;
+    }
+
+    warn "$url\n" if $self->debug;
+
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = $self->_mech;
+
+    if (   $attributes->{client_auth_required}
+        || $self->force_client_auth() != 0 )
+    {
+        if ( $self->current_access_token() eq q{} ) {
+            warn "Needed to get access token\n" if $self->debug();
+            $self->get_client_credentials();
+        }
+        $mech->add_header(
+            'Authorization' => 'Bearer ' . $self->current_access_token() );
+    }
+
+    my $content =
+      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    $mech->add_header( 'Content-Type' => 'application/json' );
+    $mech->delete( $url, Content => $content );
+
+    if ( $self->grab_response_header() == 1 ) {
+        $self->_set_response_headers($mech);
+    }
+
+    $self->response_status( $mech->status() );
+    $self->response_content_type( $mech->content_type() );
+
+    if ( $self->_has_custom_request_handler() ) {
+        $self->_set_custom_request_handler_result(
+            $self->custom_request_handler()->($mech) );
+    }
+
+    if ( $self->response_status() != HTTP_OK )
+    {
+        warn "Delete request failed with status ", $self->response_status(), "\n"
+          if $self->debug();
+        $self->last_error( "Delete request failed, status("
               . $self->response_status()
               . ") examine last_result for details" );
     }
@@ -1140,6 +1211,21 @@ sub add_items_to_playlist {
                 'uris'        => $uris,
                 'position'    => $position
             }
+        }
+    );
+}
+
+sub remove_user_saved_tracks {
+    my ( $self, $ids ) = @_;
+    
+    if ( ref($ids) eq 'ARRAY' ) {
+        $ids = join_ids($ids);
+    }
+    
+    return $self->send_delete_request(
+        {
+            method => 'remove_user_saved_tracks',
+            params => { 'ids' => $ids }
         }
     );
 }
