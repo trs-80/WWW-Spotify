@@ -15,6 +15,9 @@ SKIP: {
     skip 'No SPOTIFY_CLIENT_ID', 30 unless $ENV{SPOTIFY_CLIENT_ID};
 
     my $obj = WWW::Spotify->new();
+    $obj->oauth_client_id($ENV{SPOTIFY_CLIENT_ID});
+    $obj->oauth_client_secret($ENV{SPOTIFY_CLIENT_SECRET});
+    $obj->get_client_credentials();
 
     sub show_and_pause {
         if ( $obj->debug() ) {

@@ -1426,7 +1426,8 @@ sub get_playlist {
     return $self->send_get_request(
         {
             method => 'get_playlist',
-            params => { 'playlist_id' => $playlist_id }
+            params => { 'playlist_id' => $playlist_id },
+            client_auth_required => 1
         }
     );
 }
@@ -2213,9 +2214,11 @@ equivalent to /v1/users/{user_id}
 
 =head2 get_playlist
 
-equivalent to /v1/playlists/{playlist_id}
+equivalent to GET /v1/playlists/{playlist_id}
 
     $spotify->get_playlist('37i9dQZF1DXcBWIGoYBM5M');
+
+This method retrieves a playlist owned by a Spotify user. The playlist must be public or owned by the authenticated user.
 
 =head2 get_playlist_items
 
