@@ -283,6 +283,13 @@ my %api_call_options = (
         params => ['type', 'ids']
     },
 
+    '/v1/me/following/contains' => {
+        info   => 'Check if Current User Follows Artists or Users',
+        type   => 'GET',
+        method => 'check_if_user_follows_artists_or_users',
+        params => ['type', 'ids']
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -1457,6 +1464,25 @@ sub unfollow_artists_or_users {
     return $self->send_delete_request(
         {
             method => 'unfollow_artists_or_users',
+            params => {
+                type => $type,
+                ids  => $id_list
+            },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub check_if_user_follows_artists_or_users {
+    my ($self, $type, $ids) = @_;
+    
+    die "Type must be 'artist' or 'user'" unless $type eq 'artist' or $type eq 'user';
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    return $self->send_get_request(
+        {
+            method => 'check_if_user_follows_artists_or_users',
             params => {
                 type => $type,
                 ids  => $id_list
