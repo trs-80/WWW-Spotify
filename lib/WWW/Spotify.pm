@@ -239,6 +239,12 @@ my %api_call_options = (
         method => 'check_users_saved_tracks'
     },
 
+    '/v1/audio-features' => {
+        info   => 'Get Several Tracks\' Audio Features',
+        type   => 'GET',
+        method => 'get_several_tracks_audio_features'
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
