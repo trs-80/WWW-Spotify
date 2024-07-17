@@ -1252,6 +1252,22 @@ sub check_users_saved_tracks {
     );
 }
 
+sub get_several_tracks_audio_features {
+    my ( $self, $ids ) = @_;
+    
+    if ( ref($ids) eq 'ARRAY' ) {
+        $ids = join_ids($ids);
+    }
+    
+    return $self->send_get_request(
+        {
+            method => 'get_several_tracks_audio_features',
+            params => { 'ids' => $ids },
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1553,6 +1569,12 @@ equivalent to /v1/me/tracks
 equivalent to /v1/me/tracks/contains
 
     $spotify->check_users_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
+
+=head2 get_several_tracks_audio_features
+
+equivalent to /v1/audio-features
+
+    $spotify->get_several_tracks_audio_features(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
 
 =head2 oauth_client_id
 
