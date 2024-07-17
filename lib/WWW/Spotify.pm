@@ -202,6 +202,13 @@ my %api_call_options = (
         params => ['ids', 'market']
     },
 
+    '/v1/audiobooks/{id}/chapters' => {
+        info   => 'Get Audiobook Chapters',
+        type   => 'GET',
+        method => 'get_audiobook_chapters',
+        params => ['id', 'market', 'limit', 'offset']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1563,6 +1570,25 @@ sub get_several_audiobooks {
     return $self->send_get_request(
         {
             method => 'get_several_audiobooks',
+            params => $params,
+            client_auth_required => 1
+        }
+    );
+}
+
+sub get_audiobook_chapters {
+    my ($self, $id, $market, $limit, $offset) = @_;
+    
+    die "Audiobook ID is required" unless $id;
+    
+    my $params = { id => $id };
+    $params->{market} = $market if $market;
+    $params->{limit} = $limit if $limit;
+    $params->{offset} = $offset if defined $offset;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_audiobook_chapters',
             params => $params,
             client_auth_required => 1
         }
