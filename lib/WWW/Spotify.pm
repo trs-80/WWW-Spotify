@@ -1548,6 +1548,12 @@ equivalent to /v1/me/tracks
 
     $spotify->remove_user_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
 
+=head2 check_users_saved_tracks
+
+equivalent to /v1/me/tracks/contains
+
+    $spotify->check_users_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
