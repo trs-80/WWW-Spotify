@@ -12,7 +12,7 @@ use JSON::Path        ();
 use JSON::MaybeXS     qw( decode_json );
 use MIME::Base64      qw( encode_base64 );
 use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
-use HTTP::Status      qw( HTTP_OK );
+use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
