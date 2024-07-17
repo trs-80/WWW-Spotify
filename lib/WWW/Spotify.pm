@@ -290,6 +290,13 @@ my %api_call_options = (
         params => ['type', 'ids']
     },
 
+    '/v1/playlists/{playlist_id}/followers/contains' => {
+        info   => 'Check if Current User Follows Playlist',
+        type   => 'GET',
+        method => 'check_if_user_follows_playlist',
+        params => ['playlist_id', 'ids']
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -1492,6 +1499,26 @@ sub check_if_user_follows_artists_or_users {
     );
 }
 
+sub check_if_user_follows_playlist {
+    my ($self, $playlist_id, $ids) = @_;
+    
+    die "playlist_id is required" unless $playlist_id;
+    die "ids is required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    return $self->send_get_request(
+        {
+            method => 'check_if_user_follows_playlist',
+            params => {
+                playlist_id => $playlist_id,
+                ids         => $id_list
+            },
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1864,6 +1891,16 @@ equivalent to GET /v1/me/following/contains
 or
 
     $spotify->check_if_user_follows_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
+
+=head2 check_if_user_follows_playlist
+
+equivalent to GET /v1/playlists/{playlist_id}/followers/contains
+
+    $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', 'jmperezperez');
+
+or
+
+    $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', ['jmperezperez']);
 
 =head2 oauth_client_id
 
