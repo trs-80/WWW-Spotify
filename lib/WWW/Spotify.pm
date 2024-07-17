@@ -195,6 +195,13 @@ my %api_call_options = (
         params => ['market']
     },
 
+    '/v1/audiobooks' => {
+        info   => 'Get several audiobooks',
+        type   => 'GET',
+        method => 'get_several_audiobooks',
+        params => ['ids', 'market']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1537,6 +1544,25 @@ sub get_audiobook {
     return $self->send_get_request(
         {
             method => 'get_audiobook',
+            params => $params,
+            client_auth_required => 1
+        }
+    );
+}
+
+sub get_several_audiobooks {
+    my ($self, $ids, $market) = @_;
+    
+    die "Audiobook IDs are required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    my $params = { ids => $id_list };
+    $params->{market} = $market if $market;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_several_audiobooks',
             params => $params,
             client_auth_required => 1
         }
