@@ -2468,6 +2468,14 @@ equivalent to GET /v1/shows/{id}/episodes
 
 This method retrieves Spotify catalog information about a show's episodes. Optional parameters can be used to limit the number of episodes returned.
 
+=head2 send_delete_request
+
+Internal method used to send DELETE requests to the Spotify API.
+
+=head2 send_put_request
+
+Internal method used to send PUT requests to the Spotify API.
+
 1;
 
 __END__
