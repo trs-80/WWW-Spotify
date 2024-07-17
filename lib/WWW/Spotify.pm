@@ -2540,3 +2540,5 @@ All the great Perl community members that keep Perl fun
 Olaf Alders for all his help and support in maintaining this module
 
 =cut
+
+1; # Return true value at the end of the module
