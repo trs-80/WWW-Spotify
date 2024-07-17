@@ -4,6 +4,8 @@ use Moo 2.002004;
 
 our $VERSION = '0.013';
 
+# ABSTRACT: A Perl wrapper for the Spotify Web API
+
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
 use JSON::Path        ();
