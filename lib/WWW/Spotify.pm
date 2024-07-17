@@ -255,6 +255,13 @@ my %api_call_options = (
         method => 'get_track_audio_analysis'
     },
 
+    '/v1/recommendations' => {
+        info   => 'Get Recommendations',
+        type   => 'GET',
+        method => 'get_recommendations',
+        params => ['seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market']
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -1303,6 +1310,18 @@ sub get_track_audio_analysis {
         {
             method => 'get_track_audio_analysis',
             params => { 'id' => $id },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub get_recommendations {
+    my ($self, %params) = @_;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_recommendations',
+            params => \%params,
             client_auth_required => 1
         }
     );
