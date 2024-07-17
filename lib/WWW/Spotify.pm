@@ -265,6 +265,12 @@ my %api_call_options = (
         params => ['ids', 'market']
     },
 
+    '/v1/recommendations/available-genre-seeds' => {
+        info   => 'Get Available Genre Seeds',
+        type   => 'GET',
+        method => 'get_available_genre_seeds'
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1772,6 +1778,17 @@ sub get_several_chapters {
         {
             method => 'get_several_chapters',
             params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
+sub get_available_genre_seeds {
+    my ($self) = @_;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_available_genre_seeds',
             client_auth_required => 1
         }
     );
