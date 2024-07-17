@@ -622,6 +622,8 @@ sub send_delete_request {
     my $self       = shift;
     my $attributes = shift;
 
+    # Internal method used to send DELETE requests to the Spotify API.
+
     # reset last error
     $self->last_error(q{});
 
@@ -686,6 +688,8 @@ sub send_delete_request {
 sub send_put_request {
     my $self       = shift;
     my $attributes = shift;
+
+    # Internal method used to send PUT requests to the Spotify API.
 
     # reset last error
     $self->last_error(q{});
