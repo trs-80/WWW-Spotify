@@ -1692,6 +1692,30 @@ sub get_several_audiobooks {
     );
 }
 
+sub get_audiobook_chapters {
+    my ($self, $id, %params) = @_;
+    
+    die "Audiobook ID is required" unless $id;
+    
+    $params{id} = $id;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_audiobook_chapters',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
+=head2 get_audiobook_chapters
+
+equivalent to GET /v1/audiobooks/{id}/chapters
+
+    $spotify->get_audiobook_chapters('3ZXb8FKZGU0EHALYX6uCzU', market => 'US', limit => 50, offset => 0);
+
+This method retrieves the chapters of an audiobook.
+
 =head2 get_several_audiobooks
 
 equivalent to GET /v1/audiobooks
