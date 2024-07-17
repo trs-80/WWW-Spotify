@@ -1599,6 +1599,12 @@ equivalent to /v1/audio-features
 
     $spotify->get_several_tracks_audio_features(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
 
+=head2 get_track_audio_features
+
+equivalent to /v1/audio-features/{id}
+
+    $spotify->get_track_audio_features('4iV5W9uYEdYUVa79Axb7Rh');
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
