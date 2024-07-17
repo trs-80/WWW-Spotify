@@ -233,6 +233,12 @@ my %api_call_options = (
         method => 'remove_user_saved_tracks'
     },
 
+    '/v1/me/tracks/contains' => {
+        info   => 'Check User\'s Saved Tracks',
+        type   => 'GET',
+        method => 'check_users_saved_tracks'
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -1226,6 +1232,22 @@ sub remove_user_saved_tracks {
         {
             method => 'remove_user_saved_tracks',
             params => { 'ids' => $ids }
+        }
+    );
+}
+
+sub check_users_saved_tracks {
+    my ( $self, $ids ) = @_;
+    
+    if ( ref($ids) eq 'ARRAY' ) {
+        $ids = join_ids($ids);
+    }
+    
+    return $self->send_get_request(
+        {
+            method => 'check_users_saved_tracks',
+            params => { 'ids' => $ids },
+            client_auth_required => 1
         }
     );
 }
