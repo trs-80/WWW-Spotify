@@ -1647,6 +1647,18 @@ equivalent to /v1/audio-analysis/{id}
 
     $spotify->get_track_audio_analysis('4iV5W9uYEdYUVa79Axb7Rh');
 
+=head2 get_recommendations
+
+equivalent to /v1/recommendations
+
+    $spotify->get_recommendations(
+        seed_artists => '4NHQUGzhtTLFvgF5SZesLK',
+        seed_genres => 'classical,country',
+        seed_tracks => '0c6xIDDpzE81m2q797ordA',
+        limit => 10,
+        market => 'ES'
+    );
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
