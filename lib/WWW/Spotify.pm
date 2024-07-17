@@ -1926,6 +1926,16 @@ or
 
     $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', ['jmperezperez']);
 
+=head2 get_audiobook
+
+equivalent to GET /v1/audiobooks/{id}
+
+    $spotify->get_audiobook('7iHfbu1YPACw6oZPAFJtqe');
+
+or with market parameter:
+
+    $spotify->get_audiobook('7iHfbu1YPACw6oZPAFJtqe', 'US');
+
 =head2 oauth_client_id
 
 needed for requests that require OAuth, see Spotify API documentation for more information
