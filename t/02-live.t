@@ -26,15 +26,10 @@ SKIP: {
 
     my $result;
 
-    ok(
-        $obj->oauth_client_id( $ENV{SPOTIFY_CLIENT_ID} ),
-        'set client id'
-    );
+    ok( $obj->oauth_client_id( $ENV{SPOTIFY_CLIENT_ID} ), 'set client id' );
 
-    ok(
-        $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ),
-        'set client secret'
-    );
+    ok( $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ),
+        'set client secret' );
 
     ok( $obj->get_client_credentials(), 'get client credentials' );
 
@@ -57,7 +52,7 @@ SKIP: {
     $result = $obj->artist_albums('1vCWHaC5f2uS3yhpwWbIA6');
     ok( $result =~ /items/, 'artist_albums endpoint works' );
 
-    $result = $obj->artist_top_tracks('43ZHCT0cAZBISjO8DG9PnE', 'US');
+    $result = $obj->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', 'US' );
     ok( $result =~ /tracks/, 'artist_top_tracks endpoint works' );
 
     $result = $obj->artist_related_artists('43ZHCT0cAZBISjO8DG9PnE');
@@ -75,26 +70,32 @@ SKIP: {
     $result = $obj->browse_featured_playlists();
     ok( $result =~ /playlists/, 'browse_featured_playlists endpoint works' );
 
-    $result = $obj->browse_new_releases({ country => 'US', limit => 5, offset => 2 });
+    $result =
+      $obj->browse_new_releases( { country => 'US', limit => 5, offset => 2 } );
     ok( $result =~ /albums/, 'browse_new_releases endpoint works' );
 
-    $result = $obj->search('tania bowra', 'artist', { limit => 15, offset => 0 });
+    $result =
+      $obj->search( 'tania bowra', 'artist', { limit => 15, offset => 0 } );
     ok( $result =~ /artists/, 'search endpoint works' );
 
     $result = $obj->get_playlist('37i9dQZF1DXcBWIGoYBM5M');
     ok( $result =~ /name/, 'get_playlist endpoint works' );
 
-    $result = $obj->get_playlist_items('37i9dQZF1DXcBWIGoYBM5M', { limit => 10, offset => 0 });
+    $result = $obj->get_playlist_items( '37i9dQZF1DXcBWIGoYBM5M',
+        { limit => 10, offset => 0 } );
     ok( $result =~ /items/, 'get_playlist_items endpoint works' );
 
-    $result = $obj->get_current_user_playlists({ limit => 20, offset => 0 });
+    $result = $obj->get_current_user_playlists( { limit => 20, offset => 0 } );
     ok( $result =~ /items/, 'get_current_user_playlists endpoint works' );
 
-    $result = $obj->check_users_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
+    $result = $obj->check_users_saved_tracks(
+        [ '4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M' ] );
     ok( ref($result) eq 'ARRAY', 'check_users_saved_tracks endpoint works' );
 
-    $result = $obj->get_several_tracks_audio_features(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
-    ok( $result =~ /audio_features/, 'get_several_tracks_audio_features endpoint works' );
+    $result = $obj->get_several_tracks_audio_features(
+        [ '4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M' ] );
+    ok( $result =~ /audio_features/,
+        'get_several_tracks_audio_features endpoint works' );
 
     $result = $obj->get_track_audio_features('4iV5W9uYEdYUVa79Axb7Rh');
     ok( $result =~ /id/, 'get_track_audio_features endpoint works' );
@@ -104,18 +105,20 @@ SKIP: {
 
     $result = $obj->get_recommendations(
         seed_artists => '4NHQUGzhtTLFvgF5SZesLK',
-        seed_genres => 'classical,country',
-        seed_tracks => '0c6xIDDpzE81m2q797ordA',
-        limit => 10,
-        market => 'ES'
+        seed_genres  => 'classical,country',
+        seed_tracks  => '0c6xIDDpzE81m2q797ordA',
+        limit        => 10,
+        market       => 'ES'
     );
     ok( $result =~ /tracks/, 'get_recommendations endpoint works' );
 
-    $result = $obj->get_followed_artists(limit => 20);
+    $result = $obj->get_followed_artists( limit => 20 );
     ok( $result =~ /artists/, 'get_followed_artists endpoint works' );
 
-    $result = $obj->check_if_user_follows_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
-    ok( ref($result) eq 'ARRAY', 'check_if_user_follows_artists_or_users endpoint works' );
+    $result = $obj->check_if_user_follows_artists_or_users( 'artist',
+        [ '2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E' ] );
+    ok( ref($result) eq 'ARRAY',
+        'check_if_user_follows_artists_or_users endpoint works' );
 
     $result = $obj->get_available_genre_seeds();
     ok( $result =~ /genres/, 'get_available_genre_seeds endpoint works' );
