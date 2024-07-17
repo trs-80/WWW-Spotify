@@ -251,6 +251,13 @@ my %api_call_options = (
         params => ['category_id', 'locale']
     },
 
+    '/v1/chapters/{id}' => {
+        info   => 'Get a Chapter',
+        type   => 'GET',
+        method => 'get_chapter',
+        params => ['id', 'market']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1729,6 +1736,22 @@ sub get_category {
     );
 }
 
+sub get_chapter {
+    my ($self, $id, %params) = @_;
+    
+    die "Chapter ID is required" unless $id;
+    
+    $params{id} = $id;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_chapter',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1761,6 +1784,12 @@ equivalent to GET /v1/browse/categories
 equivalent to GET /v1/browse/categories/{category_id}
 
     $spotify->get_category('dinner', locale => 'en_US');
+
+=head2 get_chapter
+
+equivalent to GET /v1/chapters/{id}
+
+    $spotify->get_chapter('0D5wENdkdwbqlrHoaJ9g29', market => 'US');
 
 =head1 DESCRIPTION
 
