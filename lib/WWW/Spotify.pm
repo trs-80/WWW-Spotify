@@ -251,6 +251,13 @@ my %api_call_options = (
         params => ['ids']
     },
 
+    '/v1/me/shows/contains' => {
+        info   => 'Check User\'s Saved Shows',
+        type   => 'GET',
+        method => 'check_users_saved_shows',
+        params => ['ids']
+    },
+
     '/v1/browse/categories' => {
         info   => 'Get Several Browse Categories',
         type   => 'GET',
@@ -1784,6 +1791,22 @@ sub save_shows_for_current_user {
     return $self->send_put_request(
         {
             method => 'save_shows_for_current_user',
+            params => { ids => $id_list },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub check_users_saved_shows {
+    my ($self, $ids) = @_;
+    
+    die "Show IDs are required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    return $self->send_get_request(
+        {
+            method => 'check_users_saved_shows',
             params => { ids => $id_list },
             client_auth_required => 1
         }
