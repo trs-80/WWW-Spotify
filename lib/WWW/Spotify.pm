@@ -4,8 +4,6 @@ use Moo 2.002004;
 
 our $VERSION = '0.013';
 
-# ABSTRACT: A Perl wrapper for the Spotify Web API
-
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
 use JSON::Path        ();
@@ -95,7 +93,7 @@ has 'current_client_credentials' => (
 has 'force_client_auth' => (
     is      => 'rw',
     isa     => Bool,
-    default => 0
+    default => 1
 );
 
 has 'uri_hostname' => (
@@ -1178,7 +1176,8 @@ sub album {
     return $self->send_get_request(
         {
             method => 'album',
-            params => { 'id' => $id }
+            params => { 'id' => $id },
+            client_auth_required => 1
         }
     );
 }
@@ -1194,7 +1193,8 @@ sub albums {
     return $self->send_get_request(
         {
             method => 'albums',
-            params => { 'ids' => $ids }
+            params => { 'ids' => $ids },
+            client_auth_required => 1
         }
     );
 
@@ -1214,7 +1214,8 @@ sub albums_tracks {
         {
             method => 'albums_tracks',
             params => { 'id' => $album_id },
-            extras => $extras
+            extras => $extras,
+            client_auth_required => 1
         }
     );
 
@@ -1227,7 +1228,8 @@ sub artist {
     return $self->send_get_request(
         {
             method => 'artist',
-            params => { 'id' => $id }
+            params => { 'id' => $id },
+            client_auth_required => 1
         }
     );
 
@@ -1244,7 +1246,8 @@ sub artists {
     return $self->send_get_request(
         {
             method => 'artists',
-            params => { 'ids' => $artists }
+            params => { 'ids' => $artists },
+            client_auth_required => 1
         }
     );
 
@@ -1259,7 +1262,8 @@ sub artist_albums {
         {
             method => 'artist_albums',
             params => { 'id' => $artist_id },
-            extras => $extras
+            extras => $extras,
+            client_auth_required => 1
         }
     );
 
@@ -1275,7 +1279,8 @@ sub artist_top_tracks {
             method => 'artist_top_tracks',
             params => {
                 'id'      => $artist_id,
-                'country' => $country
+                'country' => $country,
+                client_auth_required => 1
             }
         }
     );
@@ -1957,16 +1962,19 @@ sub get_show_episodes {
     );
 }
 
+1;
 
-=head1 DESCRIPTION
+=pod
 
-Wrapper for the Spotify Web API.
+=encoding UTF-8
 
-https://developer.spotify.com/web-api/
+=head1 NAME
 
-Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
-very good and provides the exact path of the item within the JSON in the lower left
-of the screen as you mouse over an element.
+WWW::Spotify - Spotify Web API Wrapper
+
+=head1 VERSION
+
+version 0.013
 
 =head1 SYNOPSIS
 
@@ -2039,6 +2047,16 @@ of the screen as you mouse over an element.
                 print "$track\n";
             }
         }
+
+=head1 DESCRIPTION
+
+Wrapper for the Spotify Web API.
+
+https://developer.spotify.com/web-api/
+
+Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
+very good and provides the exact path of the item within the JSON in the lower left
+of the screen as you mouse over an element.
 
 =head1 CONSTRUCTOR ARGS
 
