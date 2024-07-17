@@ -1711,25 +1711,6 @@ sub get_audiobook_chapters {
     );
 }
 
-sub get_audiobook_chapters {
-    my ($self, $id, $market, $limit, $offset) = @_;
-    
-    die "Audiobook ID is required" unless $id;
-    
-    my $params = { id => $id };
-    $params->{market} = $market if $market;
-    $params->{limit} = $limit if $limit;
-    $params->{offset} = $offset if defined $offset;
-    
-    return $self->send_get_request(
-        {
-            method => 'get_audiobook_chapters',
-            params => $params,
-            client_auth_required => 1
-        }
-    );
-}
-
 sub get_users_saved_audiobooks {
     my ($self, $limit, $offset) = @_;
     
