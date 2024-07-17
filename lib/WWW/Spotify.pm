@@ -216,6 +216,13 @@ my %api_call_options = (
         params => ['limit', 'offset']
     },
 
+    '/v1/me/audiobooks' => {
+        info   => 'Save Audiobooks for Current User',
+        type   => 'PUT',
+        method => 'save_audiobooks_for_current_user',
+        params => ['ids']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1613,6 +1620,22 @@ sub get_users_saved_audiobooks {
         {
             method => 'get_users_saved_audiobooks',
             params => $params,
+            client_auth_required => 1
+        }
+    );
+}
+
+sub save_audiobooks_for_current_user {
+    my ($self, $ids) = @_;
+    
+    die "Audiobook IDs are required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    return $self->send_put_request(
+        {
+            method => 'save_audiobooks_for_current_user',
+            params => { ids => $id_list },
             client_auth_required => 1
         }
     );
