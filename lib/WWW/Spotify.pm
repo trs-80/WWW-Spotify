@@ -1711,26 +1711,6 @@ sub get_audiobook_chapters {
     );
 }
 
-=head2 get_audiobook_chapters
-
-equivalent to GET /v1/audiobooks/{id}/chapters
-
-    $spotify->get_audiobook_chapters('3ZXb8FKZGU0EHALYX6uCzU', market => 'US', limit => 50, offset => 0);
-
-This method retrieves the chapters of an audiobook.
-
-=head2 get_several_audiobooks
-
-equivalent to GET /v1/audiobooks
-
-    $spotify->get_several_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ'], 'US');
-
-or
-
-    $spotify->get_several_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ', 'US');
-
-This method retrieves multiple audiobooks based on their Spotify IDs.
-
 sub get_audiobook_chapters {
     my ($self, $id, $market, $limit, $offset) = @_;
     
@@ -1782,17 +1762,6 @@ sub save_audiobooks_for_current_user {
     );
 }
 
-=head2 save_audiobooks_for_current_user
-
-equivalent to PUT /v1/me/audiobooks
-
-    $spotify->save_audiobooks_for_current_user(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->save_audiobooks_for_current_user('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
-
-This method saves one or more audiobooks to the current user's library.
 
 sub remove_users_saved_audiobooks {
     my ($self, $ids) = @_;
@@ -1809,18 +1778,6 @@ sub remove_users_saved_audiobooks {
         }
     );
 }
-
-=head2 remove_users_saved_audiobooks
-
-equivalent to DELETE /v1/me/audiobooks
-
-    $spotify->remove_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->remove_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
-
-This method removes one or more audiobooks from the current user's library.
 
 sub check_users_saved_audiobooks {
     my ($self, $ids) = @_;
@@ -1881,18 +1838,6 @@ sub check_users_saved_shows {
         }
     );
 }
-
-=head2 check_users_saved_shows
-
-equivalent to GET /v1/me/shows/contains
-
-    $spotify->check_users_saved_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
-
-or
-
-    $spotify->check_users_saved_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
-
-This method checks if one or more shows are already saved in the current Spotify user's library.
 
 sub get_categories {
     my ($self, %params) = @_;
@@ -2327,6 +2272,18 @@ equivalent to /v1/me/tracks/contains
 
     $spotify->check_users_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
 
+=head2 check_users_saved_shows
+
+equivalent to GET /v1/me/shows/contains
+
+    $spotify->check_users_saved_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
+
+or
+
+    $spotify->check_users_saved_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
+
+This method checks if one or more shows are already saved in the current Spotify user's library.
+
 =head2 get_several_tracks_audio_features
 
 equivalent to /v1/audio-features
@@ -2424,6 +2381,18 @@ equivalent to GET /v1/me/audiobooks
 
     $spotify->get_users_saved_audiobooks(20, 0);
 
+=head2 remove_users_saved_audiobooks
+
+equivalent to DELETE /v1/me/audiobooks
+
+    $spotify->remove_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
+
+or
+
+    $spotify->remove_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
+This method removes one or more audiobooks from the current user's library.
+
 =head2 get_available_genre_seeds
 
 equivalent to GET /v1/recommendations/available-genre-seeds
@@ -2468,6 +2437,26 @@ equivalent to GET /v1/shows/{id}/episodes
 
 This method retrieves Spotify catalog information about a show's episodes. Optional parameters can be used to limit the number of episodes returned.
 
+=head2 get_audiobook_chapters
+
+equivalent to GET /v1/audiobooks/{id}/chapters
+
+    $spotify->get_audiobook_chapters('3ZXb8FKZGU0EHALYX6uCzU', market => 'US', limit => 50, offset => 0);
+
+This method retrieves the chapters of an audiobook.
+
+=head2 get_several_audiobooks
+
+equivalent to GET /v1/audiobooks
+
+    $spotify->get_several_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ'], 'US');
+
+or
+
+    $spotify->get_several_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ', 'US');
+
+This method retrieves multiple audiobooks based on their Spotify IDs.
+
 =head2 send_delete_request
 
 Internal method used to send DELETE requests to the Spotify API.
@@ -2475,12 +2464,6 @@ Internal method used to send DELETE requests to the Spotify API.
 =head2 send_put_request
 
 Internal method used to send PUT requests to the Spotify API.
-
-1;
-
-__END__
-
-# ABSTRACT: Spotify Web API Wrapper
 
 =head2 check_users_saved_audiobooks
 
@@ -2544,6 +2527,18 @@ equivalent to GET /v1/chapters
 or
 
     $spotify->get_several_chapters('0IsXVP0JmcB2adSE338GkK,3ZXb8FKZGU0EHALYX6uCzU,0D5wENdkdwbqlrHoaJ9g29', market => 'US');
+
+=head2 save_audiobooks_for_current_user
+
+equivalent to PUT /v1/me/audiobooks
+
+    $spotify->save_audiobooks_for_current_user(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
+
+or
+
+    $spotify->save_audiobooks_for_current_user('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
+This method saves one or more audiobooks to the current user's library.
 
 =head2 oauth_client_id
 
@@ -2627,5 +2622,9 @@ All the great Perl community members that keep Perl fun
 Olaf Alders for all his help and support in maintaining this module
 
 =cut
+
+__END__
+
+# ABSTRACT: Spotify Web API Wrapper
 
 1;    # Return true value at the end of the module
