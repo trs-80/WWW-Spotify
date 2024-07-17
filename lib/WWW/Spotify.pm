@@ -195,6 +195,38 @@ my %api_call_options = (
         params => [ 'limit', 'offset' ]
     },
 
+    '/v1/playlists/{playlist_id}' => {
+        info   => 'Get a playlist',
+        type   => 'GET',
+        method => 'get_playlist'
+    },
+
+    '/v1/playlists/{playlist_id}/tracks' => {
+        info   => 'Get playlist items',
+        type   => 'GET',
+        method => 'get_playlist_items',
+        params => [ 'limit', 'offset', 'market', 'fields' ]
+    },
+
+    '/v1/users/{user_id}/playlists' => {
+        info   => 'Create a playlist',
+        type   => 'POST',
+        method => 'create_playlist'
+    },
+
+    '/v1/me/playlists' => {
+        info   => 'Get current user\'s playlists',
+        type   => 'GET',
+        method => 'get_current_user_playlists',
+        params => [ 'limit', 'offset' ]
+    },
+
+    '/v1/playlists/{playlist_id}/tracks' => {
+        info   => 'Add items to a playlist',
+        type   => 'POST',
+        method => 'add_items_to_playlist'
+    },
+
     '/v1/albums/{id}/tracks' => {
         info   => q{Get an album's tracks},
         type   => 'GET',
@@ -321,8 +353,55 @@ sub send_post_request {
     my $self       = shift;
     my $attributes = shift;
 
-    # we will need do some auth nere
+    # reset last error
+    $self->last_error(q{});
 
+    my $url = $self->uri_scheme() . '://' . $self->uri_hostname();
+    my $path = $method_to_uri{ $attributes->{method} };
+
+    if ($path) {
+        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
+        $url .= $path;
+    }
+
+    warn "$url\n" if $self->debug;
+
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = $self->_mech;
+
+    if ($attributes->{client_auth_required} || $self->force_client_auth() != 0) {
+        if ($self->current_access_token() eq q{}) {
+            warn "Needed to get access token\n" if $self->debug();
+            $self->get_client_credentials();
+        }
+        $mech->add_header('Authorization' => 'Bearer ' . $self->current_access_token());
+    }
+
+    my $content = $attributes->{params} ? encode_json($attributes->{params}) : '';
+    $mech->add_header('Content-Type' => 'application/json');
+    $mech->post($url, Content => $content);
+
+    if ($self->grab_response_header() == 1) {
+        $self->_set_response_headers($mech);
+    }
+
+    $self->response_status($mech->status());
+    $self->response_content_type($mech->content_type());
+
+    if ($self->_has_custom_request_handler()) {
+        $self->_set_custom_request_handler_result($self->custom_request_handler()->($mech));
+    }
+
+    if ($self->response_content_type() =~ /application\/json/i && $self->response_status() != HTTP_OK) {
+        warn "content type is ", $self->response_content_type(), "\n" if $self->debug();
+        $self->last_error("request failed, status(" . $self->response_status() . ") examine last_result for details");
+    }
+
+    if ($self->die_on_response_error() == 1 && $self->last_error ne '') {
+        die $self->last_error();
+    }
+
+    return $self->format_results($mech->content, $mech->ct(), $mech->status());
 }
 
 sub send_get_request {
@@ -992,24 +1071,54 @@ sub user {
 
 }
 
-sub user_playlist {
-    my $self = shift;
-    return;
+sub get_playlist {
+    my ($self, $playlist_id) = @_;
+    return $self->send_get_request({
+        method => 'get_playlist',
+        params => { 'playlist_id' => $playlist_id }
+    });
 }
 
-sub user_playlist_add_tracks {
-    my $self = shift;
-    return;
+sub get_playlist_items {
+    my ($self, $playlist_id, $extras) = @_;
+    return $self->send_get_request({
+        method => 'get_playlist_items',
+        params => { 'playlist_id' => $playlist_id },
+        extras => $extras
+    });
 }
 
-sub user_playlist_create {
-    my $self = shift;
-    return;
+sub create_playlist {
+    my ($self, $user_id, $name, $public, $description) = @_;
+    return $self->send_post_request({
+        method => 'create_playlist',
+        params => {
+            'user_id' => $user_id,
+            'name' => $name,
+            'public' => $public,
+            'description' => $description
+        }
+    });
 }
 
-sub user_playlists {
-    my $self = shift;
-    return;
+sub get_current_user_playlists {
+    my ($self, $extras) = @_;
+    return $self->send_get_request({
+        method => 'get_current_user_playlists',
+        extras => $extras
+    });
+}
+
+sub add_items_to_playlist {
+    my ($self, $playlist_id, $uris, $position) = @_;
+    return $self->send_post_request({
+        method => 'add_items_to_playlist',
+        params => {
+            'playlist_id' => $playlist_id,
+            'uris' => $uris,
+            'position' => $position
+        }
+    });
 }
 
 1;
