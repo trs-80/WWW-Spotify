@@ -1794,6 +1794,14 @@ sub get_available_genre_seeds {
     );
 }
 
+=head2 get_available_genre_seeds
+
+equivalent to GET /v1/recommendations/available-genre-seeds
+
+    $spotify->get_available_genre_seeds();
+
+This method retrieves a list of available genres seed parameter values for recommendations.
+
 1;
 
 __END__
