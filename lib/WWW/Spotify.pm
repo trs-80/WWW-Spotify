@@ -258,6 +258,13 @@ my %api_call_options = (
         params => ['id', 'market']
     },
 
+    '/v1/chapters' => {
+        info   => 'Get Several Chapters',
+        type   => 'GET',
+        method => 'get_several_chapters',
+        params => ['ids', 'market']
+    },
+
     '/v1/albums?ids={ids}' => {
         info   => 'Get several albums',
         type   => 'GET',
@@ -1752,6 +1759,24 @@ sub get_chapter {
     );
 }
 
+sub get_several_chapters {
+    my ($self, $ids, %params) = @_;
+    
+    die "Chapter IDs are required" unless $ids;
+    
+    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
+    
+    $params{ids} = $id_list;
+    
+    return $self->send_get_request(
+        {
+            method => 'get_several_chapters',
+            params => \%params,
+            client_auth_required => 1
+        }
+    );
+}
+
 1;
 
 __END__
@@ -1790,6 +1815,16 @@ equivalent to GET /v1/browse/categories/{category_id}
 equivalent to GET /v1/chapters/{id}
 
     $spotify->get_chapter('0D5wENdkdwbqlrHoaJ9g29', market => 'US');
+
+=head2 get_several_chapters
+
+equivalent to GET /v1/chapters
+
+    $spotify->get_several_chapters(['0IsXVP0JmcB2adSE338GkK', '3ZXb8FKZGU0EHALYX6uCzU', '0D5wENdkdwbqlrHoaJ9g29'], market => 'US');
+
+or
+
+    $spotify->get_several_chapters('0IsXVP0JmcB2adSE338GkK,3ZXb8FKZGU0EHALYX6uCzU,0D5wENdkdwbqlrHoaJ9g29', market => 'US');
 
 =head1 DESCRIPTION
 
