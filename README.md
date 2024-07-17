@@ -4,7 +4,7 @@ WWW::Spotify - Spotify Web API Wrapper
 
 # VERSION
 
-version 0.012
+version 0.013
 
 # SYNOPSIS
 
@@ -256,7 +256,39 @@ will pass authentication (OAuth) on all requests when set
 
 ## user
 
-equivalent to /user
+equivalent to /v1/users/{user\_id}
+
+    $spotify->user('glennpmcdonald');
+
+## get\_playlist
+
+equivalent to /v1/playlists/{playlist\_id}
+
+    $spotify->get_playlist('37i9dQZF1DXcBWIGoYBM5M');
+
+## get\_playlist\_items
+
+equivalent to /v1/playlists/{playlist\_id}/tracks
+
+    $spotify->get_playlist_items('37i9dQZF1DXcBWIGoYBM5M', { limit => 10, offset => 0 });
+
+## create\_playlist
+
+equivalent to /v1/users/{user\_id}/playlists
+
+    $spotify->create_playlist('user_id', 'My New Playlist', 1, 'A description of my playlist');
+
+## get\_current\_user\_playlists
+
+equivalent to /v1/me/playlists
+
+    $spotify->get_current_user_playlists({ limit => 20, offset => 0 });
+
+## add\_items\_to\_playlist
+
+equivalent to /v1/playlists/{playlist\_id}/tracks
+
+    $spotify->add_items_to_playlist('playlist_id', ['spotify:track:4iV5W9uYEdYUVa79Axb7Rh', 'spotify:track:1301WleyT98MSxVHPZCA6M'], 0);
 
 ## oauth\_client\_id
 
@@ -345,7 +377,7 @@ Aaron Johnson <aaronjjohnson@gmail.com>
 
 # COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2014 by Aaron Johnson.
+This software is copyright (c) 2024 by Aaron Johnson.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

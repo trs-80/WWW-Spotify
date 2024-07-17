@@ -356,7 +356,7 @@ sub send_post_request {
     # reset last error
     $self->last_error(q{});
 
-    my $url = $self->uri_scheme() . '://' . $self->uri_hostname();
+    my $url  = $self->uri_scheme() . '://' . $self->uri_hostname();
     my $path = $method_to_uri{ $attributes->{method} };
 
     if ($path) {
@@ -369,39 +369,50 @@ sub send_post_request {
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
 
-    if ($attributes->{client_auth_required} || $self->force_client_auth() != 0) {
-        if ($self->current_access_token() eq q{}) {
+    if (   $attributes->{client_auth_required}
+        || $self->force_client_auth() != 0 )
+    {
+        if ( $self->current_access_token() eq q{} ) {
             warn "Needed to get access token\n" if $self->debug();
             $self->get_client_credentials();
         }
-        $mech->add_header('Authorization' => 'Bearer ' . $self->current_access_token());
+        $mech->add_header(
+            'Authorization' => 'Bearer ' . $self->current_access_token() );
     }
 
-    my $content = $attributes->{params} ? encode_json($attributes->{params}) : '';
-    $mech->add_header('Content-Type' => 'application/json');
-    $mech->post($url, Content => $content);
+    my $content =
+      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    $mech->add_header( 'Content-Type' => 'application/json' );
+    $mech->post( $url, Content => $content );
 
-    if ($self->grab_response_header() == 1) {
+    if ( $self->grab_response_header() == 1 ) {
         $self->_set_response_headers($mech);
     }
 
-    $self->response_status($mech->status());
-    $self->response_content_type($mech->content_type());
+    $self->response_status( $mech->status() );
+    $self->response_content_type( $mech->content_type() );
 
-    if ($self->_has_custom_request_handler()) {
-        $self->_set_custom_request_handler_result($self->custom_request_handler()->($mech));
+    if ( $self->_has_custom_request_handler() ) {
+        $self->_set_custom_request_handler_result(
+            $self->custom_request_handler()->($mech) );
     }
 
-    if ($self->response_content_type() =~ /application\/json/i && $self->response_status() != HTTP_OK) {
-        warn "content type is ", $self->response_content_type(), "\n" if $self->debug();
-        $self->last_error("request failed, status(" . $self->response_status() . ") examine last_result for details");
+    if (   $self->response_content_type() =~ /application\/json/i
+        && $self->response_status() != HTTP_OK )
+    {
+        warn "content type is ", $self->response_content_type(), "\n"
+          if $self->debug();
+        $self->last_error( "request failed, status("
+              . $self->response_status()
+              . ") examine last_result for details" );
     }
 
-    if ($self->die_on_response_error() == 1 && $self->last_error ne '') {
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
-    return $self->format_results($mech->content, $mech->ct(), $mech->status());
+    return $self->format_results( $mech->content, $mech->ct(),
+        $mech->status() );
 }
 
 sub send_get_request {
@@ -417,7 +428,8 @@ sub send_get_request {
     $self->last_error(q{});
 
     if ( defined $attributes->{extras}
-        and ref $attributes->{extras} eq 'HASH' ) {
+        and ref $attributes->{extras} eq 'HASH' )
+    {
         my @tmp = ();
 
         foreach my $key ( keys %{ $attributes->{extras} } ) {
@@ -427,7 +439,8 @@ sub send_get_request {
     }
 
     if ( exists $attributes->{format}
-        && $attributes->{format} =~ /json|jsonp/ ) {
+        && $attributes->{format} =~ /json|jsonp/ )
+    {
         $self->result_format( $attributes->{format} );
         delete $attributes->{format};
     }
@@ -459,8 +472,7 @@ sub send_get_request {
             elsif ( $path =~ m/\{id\}/ && exists $attributes->{params}{id} ) {
                 $path =~ s/\{id\}/$attributes->{params}{id}/;
             }
-            elsif ( $path =~ m/\{ids\}/ && exists $attributes->{params}{ids} )
-            {
+            elsif ( $path =~ m/\{ids\}/ && exists $attributes->{params}{ids} ) {
                 $path =~ s/\{ids\}/$attributes->{params}{ids}/;
             }
 
@@ -469,14 +481,15 @@ sub send_get_request {
             }
 
             if ( $path =~ m/\{user_id\}/
-                && exists $attributes->{params}{user_id} ) {
+                && exists $attributes->{params}{user_id} )
+            {
                 $path =~ s/\{user_id\}/$attributes->{params}{user_id}/;
             }
 
             if ( $path =~ m/\{playlist_id\}/
-                && exists $attributes->{params}{playlist_id} ) {
-                $path
-                    =~ s/\{playlist_id\}/$attributes->{params}{playlist_id}/;
+                && exists $attributes->{params}{playlist_id} )
+            {
+                $path =~ s/\{playlist_id\}/$attributes->{params}{playlist_id}/;
             }
 
             warn "modified: $path\n" if $self->debug();
@@ -499,7 +512,8 @@ sub send_get_request {
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 ) {
+        || $self->force_client_auth() != 0 )
+    {
 
         if ( $self->current_access_token() eq q{} ) {
             warn "Needed to get access token\n" if $self->debug();
@@ -530,22 +544,21 @@ sub send_get_request {
     # existing code using older versions of this module.
     # verify the status and content_type of the response
     if (   $self->response_content_type() =~ /application\/json/i
-        && $self->response_status() != HTTP_OK ) {
+        && $self->response_status() != HTTP_OK )
+    {
         warn "content type is ", $self->response_content_type(), "\n"
-            if $self->debug();
+          if $self->debug();
         $self->last_error( "request failed, status("
-                . $self->response_status()
-                . ") examine last_result for details" );
+              . $self->response_status()
+              . ") examine last_result for details" );
     }
 
     if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
-    return $self->format_results(
-        $mech->content, $mech->ct(),
-        $mech->status()
-    );
+    return $self->format_results( $mech->content, $mech->ct(),
+        $mech->status() );
 
 }
 
@@ -594,8 +607,8 @@ sub get_oauth_authorize {
 
     my $grant_type = 'authorization_code';
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $client_and_secret
-        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $client_and_secret =
+      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
     chomp($encoded);
     $encoded =~ s/\n//g;
@@ -628,8 +641,8 @@ sub get_client_credentials {
     my $grant_type = 'client_credentials';
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
-    my $client_and_secret
-        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $client_and_secret =
+      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
     my $url     = $self->oauth_token_url();
 
@@ -639,8 +652,8 @@ sub get_client_credentials {
     my $extra = {
         grant_type => $grant_type
 
-            #code => 'code',
-            #redirect_uri => $self->oauth_redirect_uri
+          #code => 'code',
+          #redirect_uri => $self->oauth_redirect_uri
     };
     if ($scope) {
         $extra->{scope} = $scope;
@@ -702,16 +715,16 @@ sub get_access_token {
     # need to authorize first??
 
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $client_and_secret
-        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $client_and_secret =
+      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
 
-    print $client_and_secret , "\n";
-    print $grant_type ,        "\n";
+    print $client_and_secret, "\n";
+    print $grant_type,        "\n";
     my $encoded = encode_base64($client_and_secret);
-    print $encoded , "\n";
+    print $encoded, "\n";
 
     my $url = $self->oauth_token_url;
-    print $url , "\n";
+    print $url, "\n";
     my $extra = {
         grant_type   => $grant_type,
         code         => 'code',
@@ -740,9 +753,9 @@ sub get {
     # on dependencies.  However I would not have been
     # able to do this in so few lines without it
 
-    # Making a generalization here
-    # if you use a * you are looking for an array
-    # if you don't have an * you want the first 1 (or should I say you get the first 1)
+# Making a generalization here
+# if you use a * you are looking for an array
+# if you don't have an * you want the first 1 (or should I say you get the first 1)
 
     my ( $self, @return ) = @_;
 
@@ -1072,53 +1085,63 @@ sub user {
 }
 
 sub get_playlist {
-    my ($self, $playlist_id) = @_;
-    return $self->send_get_request({
-        method => 'get_playlist',
-        params => { 'playlist_id' => $playlist_id }
-    });
+    my ( $self, $playlist_id ) = @_;
+    return $self->send_get_request(
+        {
+            method => 'get_playlist',
+            params => { 'playlist_id' => $playlist_id }
+        }
+    );
 }
 
 sub get_playlist_items {
-    my ($self, $playlist_id, $extras) = @_;
-    return $self->send_get_request({
-        method => 'get_playlist_items',
-        params => { 'playlist_id' => $playlist_id },
-        extras => $extras
-    });
+    my ( $self, $playlist_id, $extras ) = @_;
+    return $self->send_get_request(
+        {
+            method => 'get_playlist_items',
+            params => { 'playlist_id' => $playlist_id },
+            extras => $extras
+        }
+    );
 }
 
 sub create_playlist {
-    my ($self, $user_id, $name, $public, $description) = @_;
-    return $self->send_post_request({
-        method => 'create_playlist',
-        params => {
-            'user_id' => $user_id,
-            'name' => $name,
-            'public' => $public,
-            'description' => $description
+    my ( $self, $user_id, $name, $public, $description ) = @_;
+    return $self->send_post_request(
+        {
+            method => 'create_playlist',
+            params => {
+                'user_id'     => $user_id,
+                'name'        => $name,
+                'public'      => $public,
+                'description' => $description
+            }
         }
-    });
+    );
 }
 
 sub get_current_user_playlists {
-    my ($self, $extras) = @_;
-    return $self->send_get_request({
-        method => 'get_current_user_playlists',
-        extras => $extras
-    });
+    my ( $self, $extras ) = @_;
+    return $self->send_get_request(
+        {
+            method => 'get_current_user_playlists',
+            extras => $extras
+        }
+    );
 }
 
 sub add_items_to_playlist {
-    my ($self, $playlist_id, $uris, $position) = @_;
-    return $self->send_post_request({
-        method => 'add_items_to_playlist',
-        params => {
-            'playlist_id' => $playlist_id,
-            'uris' => $uris,
-            'position' => $position
+    my ( $self, $playlist_id, $uris, $position ) = @_;
+    return $self->send_post_request(
+        {
+            method => 'add_items_to_playlist',
+            params => {
+                'playlist_id' => $playlist_id,
+                'uris'        => $uris,
+                'position'    => $position
+            }
         }
-    });
+    );
 }
 
 1;
