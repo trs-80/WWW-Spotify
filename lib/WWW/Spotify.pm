@@ -1692,6 +1692,18 @@ sub get_several_audiobooks {
     );
 }
 
+=head2 get_several_audiobooks
+
+equivalent to GET /v1/audiobooks
+
+    $spotify->get_several_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ'], 'US');
+
+or
+
+    $spotify->get_several_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ', 'US');
+
+This method retrieves multiple audiobooks based on their Spotify IDs.
+
 sub get_audiobook_chapters {
     my ($self, $id, $market, $limit, $offset) = @_;
     
@@ -1743,6 +1755,18 @@ sub save_audiobooks_for_current_user {
     );
 }
 
+=head2 save_audiobooks_for_current_user
+
+equivalent to PUT /v1/me/audiobooks
+
+    $spotify->save_audiobooks_for_current_user(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
+
+or
+
+    $spotify->save_audiobooks_for_current_user('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
+This method saves one or more audiobooks to the current user's library.
+
 sub remove_users_saved_audiobooks {
     my ($self, $ids) = @_;
     
@@ -1758,6 +1782,18 @@ sub remove_users_saved_audiobooks {
         }
     );
 }
+
+=head2 remove_users_saved_audiobooks
+
+equivalent to DELETE /v1/me/audiobooks
+
+    $spotify->remove_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
+
+or
+
+    $spotify->remove_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
+
+This method removes one or more audiobooks from the current user's library.
 
 sub check_users_saved_audiobooks {
     my ($self, $ids) = @_;
@@ -1818,6 +1854,18 @@ sub check_users_saved_shows {
         }
     );
 }
+
+=head2 check_users_saved_shows
+
+equivalent to GET /v1/me/shows/contains
+
+    $spotify->check_users_saved_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
+
+or
+
+    $spotify->check_users_saved_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
+
+This method checks if one or more shows are already saved in the current Spotify user's library.
 
 sub get_categories {
     my ($self, %params) = @_;
