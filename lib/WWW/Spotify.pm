@@ -2,12 +2,15 @@ package WWW::Spotify;
 
 use Moo 2.002004;
 
+# roles will be composed later in the file (after attribute declarations)
+
 our $VERSION = '0.013';
 
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
 use JSON::Path        ();
-use JSON::MaybeXS     qw( decode_json );
+# JSON::MaybeXS exports encode_json only when asked; we now need both
+use JSON::MaybeXS     qw( decode_json encode_json );
 use MIME::Base64      qw( encode_base64 );
 use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
 use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT );
@@ -42,11 +45,29 @@ has 'oauth_client_secret' => (
     default => $ENV{SPOTIFY_CLIENT_SECRET} || q{}
 );
 
-has 'current_oath_code' => (
+# keep for backwards compat: alias misspelled attribute name
+# DEPRECATED: use current_oauth_code instead (fixed spelling)
+# The original attribute was misspelled as "current_oath_code".
+# It is retained here as a lazy delegate to the correctly spelled
+# attribute so that existing user code continues to work without
+# modification.
+
+has 'current_oauth_code' => (
     is      => 'rw',
     isa     => Str,
     default => q{}
 );
+
+# backward‑compat alias (read/write)
+
+# The misspelled accessor is retained as a thin wrapper so external
+# code that might call it continues to work.  It simply forwards to
+# current_oauth_code.
+
+sub current_oath_code {
+    my $self = shift;
+    return $self->current_oauth_code(@_);
+}
 
 has 'current_access_token' => (
     is      => 'rw',
@@ -181,6 +202,18 @@ has 'die_on_response_error' => (
     default => 0
 );
 
+# ------------------------------------------------------------------
+# Compose roles *after* all attribute declarations so that the
+# requirements declared by those roles are satisfied.  The roles are
+# currently responsible for authentication logic and generic HTTP
+# helpers.
+# ------------------------------------------------------------------
+
+with qw(
+  WWW::Spotify::Client
+  WWW::Spotify::Endpoint
+);
+
 my %api_call_options = (
     '/v1/albums/{id}' => {
         info   => 'Get an album',
@@ -209,21 +242,21 @@ my %api_call_options = (
         params => [ 'id', 'market', 'limit', 'offset' ]
     },
 
-    '/v1/me/audiobooks' => {
+    '/v1/me/audiobooks|GET' => {
         info   => 'Get User\'s Saved Audiobooks',
         type   => 'GET',
         method => 'get_users_saved_audiobooks',
         params => [ 'limit', 'offset' ]
     },
 
-    '/v1/me/audiobooks' => {
+    '/v1/me/audiobooks|PUT' => {
         info   => 'Save Audiobooks for Current User',
         type   => 'PUT',
         method => 'save_audiobooks_for_current_user',
         params => ['ids']
     },
 
-    '/v1/me/audiobooks' => {
+    '/v1/me/audiobooks|DELETE' => {
         info   => 'Remove User\'s Saved Audiobooks',
         type   => 'DELETE',
         method => 'remove_users_saved_audiobooks',
@@ -237,14 +270,14 @@ my %api_call_options = (
         params => ['ids']
     },
 
-    '/v1/me/shows' => {
+    '/v1/me/shows|GET' => {
         info   => 'Get User\'s Saved Shows',
         type   => 'GET',
         method => 'get_users_saved_shows',
         params => [ 'limit', 'offset' ]
     },
 
-    '/v1/me/shows' => {
+    '/v1/me/shows|PUT' => {
         info   => 'Save Shows for Current User',
         type   => 'PUT',
         method => 'save_shows_for_current_user',
@@ -332,14 +365,14 @@ my %api_call_options = (
         method => 'get_playlist'
     },
 
-    '/v1/playlists/{playlist_id}/tracks' => {
+    '/v1/playlists/{playlist_id}/tracks|GET' => {
         info   => 'Get playlist items',
         type   => 'GET',
         method => 'get_playlist_items',
         params => [ 'limit', 'offset', 'market', 'fields' ]
     },
 
-    '/v1/users/{user_id}/playlists' => {
+    '/v1/users/{user_id}/playlists|POST' => {
         info   => 'Create a playlist',
         type   => 'POST',
         method => 'create_playlist'
@@ -352,7 +385,7 @@ my %api_call_options = (
         params => [ 'limit', 'offset' ]
     },
 
-    '/v1/playlists/{playlist_id}/tracks' => {
+    '/v1/playlists/{playlist_id}/tracks|POST' => {
         info   => 'Add items to a playlist',
         type   => 'POST',
         method => 'add_items_to_playlist'
@@ -394,21 +427,21 @@ my %api_call_options = (
           [ 'seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market' ]
     },
 
-    '/v1/me/following' => {
+    '/v1/me/following|GET' => {
         info   => 'Get Followed Artists',
         type   => 'GET',
         method => 'get_followed_artists',
         params => [ 'type', 'after', 'limit' ]
     },
 
-    '/v1/me/following' => {
+    '/v1/me/following|PUT' => {
         info   => 'Follow Artists or Users',
         type   => 'PUT',
         method => 'follow_artists_or_users',
         params => [ 'type', 'ids' ]
     },
 
-    '/v1/me/following' => {
+    '/v1/me/following|DELETE' => {
         info   => 'Unfollow Artists or Users',
         type   => 'DELETE',
         method => 'unfollow_artists_or_users',
@@ -501,7 +534,7 @@ my %api_call_options = (
         method => 'me'
     },
 
-    '/v1/users/{user_id}/playlists' => {
+    '/v1/users/{user_id}/playlists|GET' => {
         info   => q{Get a list of a user's playlists},
         type   => 'GET',
         method => 'user_playlist'
@@ -546,9 +579,23 @@ my %api_call_options = (
 
 my %method_to_uri = ();
 
+# Build %method_to_uri mapping while tolerating duplicate URI paths that
+# are distinguished by HTTP verb suffixes appended to the hash key (eg
+# "/v1/me/audiobooks|GET").  The verb portion – everything from the last
+# pipe ("|") character to the end of the string – is stripped off before
+# the mapping is stored so that the final URL remains unchanged.
+
 foreach my $key ( keys %api_call_options ) {
-    next if $api_call_options{$key}->{method} eq q{};
-    $method_to_uri{ $api_call_options{$key}->{method} } = $key;
+    my $entry = $api_call_options{$key};
+    next if $entry->{method} eq q{};    # skip placeholders
+
+    # Remove an optional "|VERB" suffix that we add to disambiguate
+    # duplicate paths (eg "/v1/me/audiobooks|PUT").  This preserves the
+    # original request URI while still allowing each HTTP verb to have a
+    # distinct hash key.
+    my ($path_without_suffix) = split /\|/, $key, 2;
+
+    $method_to_uri{ $entry->{method} } = $path_without_suffix;
 }
 
 sub send_post_request {
@@ -758,7 +805,8 @@ sub send_get_request {
     my $attributes = shift;
 
     my $uri_params = q{};
-
+    warn "attributes: ", Dumper($attributes) if $self->debug();
+    
     # reset last error
     $self->last_error(q{});
 
@@ -771,6 +819,7 @@ sub send_get_request {
             push @tmp, "$key=$attributes->{extras}{$key}";
         }
         $uri_params = join( '&', @tmp );
+        warn "uri_params: $uri_params\n" if $self->debug();
     }
 
     if ( exists $attributes->{format}
@@ -828,11 +877,12 @@ sub send_get_request {
             }
 
             warn "modified: $path\n" if $self->debug();
+            $url .= $path;
         }
 
-        $url .= $path;
+        
     }
-
+    warn "url: $url\n" if $self->debug();
     # now we need to address the "extra" attributes if any
     if ($uri_params) {
         my $start_with = '?';
@@ -933,149 +983,6 @@ sub format_results {
     return $content;
 }
 
-sub get_oauth_authorize {
-    my $self = shift;
-
-    if ( $self->current_oath_code() ) {
-        return $self->current_oauth_code();
-    }
-
-    my $grant_type = 'authorization_code';
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
-    my $encoded = encode_base64($client_and_secret);
-    chomp($encoded);
-    $encoded =~ s/\n//g;
-    my $url = $self->oauth_authorize_url();
-
-    my @parts;
-
-    $parts[0] = 'response_type=code';
-    $parts[1] = 'redirect_uri=' . $self->oauth_redirect_uri;
-
-    my $params = join( '&', @parts );
-    $url = $url . '?client_id=' . $self->oauth_client_id() . "&$params";
-
-    $self->ua->get($url);
-
-    return $self->ua->content;
-}
-
-sub get_client_credentials {
-    my $self  = shift;
-    my $scope = shift;
-
-    if ( $self->current_access_token() ne q{} ) {
-        return $self->current_access_token();
-    }
-    if ( $self->oauth_client_id() eq q{} ) {
-        die "need to set the client oauth parameters\n";
-    }
-
-    my $grant_type = 'client_credentials';
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = $self->_mech;
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
-    my $encoded = encode_base64($client_and_secret);
-    my $url     = $self->oauth_token_url();
-
-    # $url .= "?grant_type=client_credentials";
-    # my $url = $self->oauth_authorize_url();
-    # grant_type=client_credentials
-    my $extra = {
-        grant_type => $grant_type
-
-          #code => 'code',
-          #redirect_uri => $self->oauth_redirect_uri
-    };
-    if ($scope) {
-        $extra->{scope} = $scope;
-    }
-
-    chomp($encoded);
-    $encoded =~ s/\n//g;
-    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
-
-    $mech->post( $url, [$extra] );
-    my $content = $mech->content();
-
-    if ( $content =~ /access_token/ ) {
-        warn "setting access token\n" if $self->debug();
-
-        my $result = decode_json $content;
-
-        if ( $result->{'access_token'} ) {
-            $self->current_access_token( $result->{'access_token'} );
-        }
-    }
-}
-
-sub get_access_token {
-
-    # cheap oauth code for now
-
-    my $self       = shift;
-    my $grant_type = 'authorization_code';
-    my $scope      = shift;
-
-    my @scopes = (
-        'playlist-modify',       'playlist-modify-private',
-        'playlist-read-private', 'streaming',
-        'user-read-private',     'user-read-email'
-    );
-
-    if ($scope) {
-
-        # make sure it is valid
-        my $good_scope = 0;
-        foreach my $s (@scopes) {
-            if ( $scope eq $s ) {
-                $good_scope = 1;
-                last;
-            }
-        }
-        if ( $good_scope == 0 ) {
-
-            # clear the scope, it doesn't
-            # look valid
-            $scope = q{};
-        }
-
-    }
-
-    $grant_type ||= 'authorization_code';
-
-    # need to authorize first??
-
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
-
-    print $client_and_secret, "\n";
-    print $grant_type,        "\n";
-    my $encoded = encode_base64($client_and_secret);
-    print $encoded, "\n";
-
-    my $url = $self->oauth_token_url;
-    print $url, "\n";
-    my $extra = {
-        grant_type   => $grant_type,
-        code         => 'code',
-        redirect_uri => $self->oauth_redirect_uri
-    };
-    if ($scope) {
-        $extra->{scope} = $scope;
-    }
-
-    my $mech = $self->_mech;
-    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
-
-    $mech->post( $url, [$extra] );
-
-    print $mech->content(), "\n";
-}
 
 sub get {
 
@@ -1420,7 +1327,8 @@ sub user {
     return $self->send_get_request(
         {
             method => 'user',
-            params => { 'user_id' => $user_id }
+            params => { 'user_id' => $user_id },
+            client_auth_required => 1
         }
     );
 
@@ -1443,7 +1351,8 @@ sub get_playlist_items {
         {
             method => 'get_playlist_items',
             params => { 'playlist_id' => $playlist_id },
-            extras => $extras
+            extras => $extras,
+            client_auth_required => 1
         }
     );
 }
@@ -1457,7 +1366,8 @@ sub create_playlist {
                 'user_id'     => $user_id,
                 'name'        => $name,
                 'public'      => $public,
-                'description' => $description
+                'description' => $description,
+                client_auth_required => 1
             }
         }
     );
@@ -1468,7 +1378,8 @@ sub get_current_user_playlists {
     return $self->send_get_request(
         {
             method => 'get_current_user_playlists',
-            extras => $extras
+            extras => $extras,
+            client_auth_required => 1
         }
     );
 }
@@ -1481,7 +1392,8 @@ sub add_items_to_playlist {
             params => {
                 'playlist_id' => $playlist_id,
                 'uris'        => $uris,
-                'position'    => $position
+                'position'    => $position,
+                client_auth_required => 1
             }
         }
     );
@@ -1497,7 +1409,8 @@ sub remove_user_saved_tracks {
     return $self->send_delete_request(
         {
             method => 'remove_user_saved_tracks',
-            params => { 'ids' => $ids }
+            params => { 'ids' => $ids },
+            client_auth_required => 1
         }
     );
 }
