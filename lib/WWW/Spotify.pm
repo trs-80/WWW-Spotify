@@ -146,6 +146,12 @@ has 'last_result' => (
     default => q{}
 );
 
+has 'last_response' => (
+    is        => 'rw',
+    isa       => InstanceOf ['WWW::Spotify::Response'],
+    predicate => 'has_last_response',
+);
+
 has 'last_error' => (
     is      => 'rw',
     isa     => Str,
@@ -577,7 +583,7 @@ my %api_call_options = (
     }
 );
 
-my %method_to_uri = ();
+our %method_to_uri = ();
 
 # Build %method_to_uri mapping while tolerating duplicate URI paths that
 # are distinguished by HTTP verb suffixes appended to the hash key (eg
@@ -596,6 +602,12 @@ foreach my $key ( keys %api_call_options ) {
     my ($path_without_suffix) = split /\|/, $key, 2;
 
     $method_to_uri{ $entry->{method} } = $path_without_suffix;
+}
+
+# Provide a small accessor so other roles can access the mapping without
+# needing direct package‑level knowledge.
+sub _method_to_uri {
+    return \%method_to_uri;
 }
 
 sub send_post_request {
@@ -973,12 +985,19 @@ sub format_results {
     # if so then we need to create another method that will
     # manage a Sucess vs. Fail request
 
-    if ( $self->auto_json_decode && $self->result_format eq 'json' ) {
-        return decode_json $content;
-    }
+    require WWW::Spotify::Response;
 
-    # results are not altered in this case and would be
-    # json instead of a perl data structure
+    my $resp = WWW::Spotify::Response->new(
+        raw           => $content,
+        content_type  => $_[0],
+        status        => $_[1],
+    );
+
+    $self->last_response($resp);
+
+    if ( $self->auto_json_decode && $self->result_format eq 'json' ) {
+        return $resp->json;
+    }
 
     return $content;
 }
