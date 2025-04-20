@@ -84,6 +84,25 @@ Wrapper for the Spotify Web API.
 
 https://developer.spotify.com/web-api/
 
+## Architecture (v0.014 and later)
+
+From version 0.014 the distribution has been refactored into smaller,
+focused units.  This does *not* change the public API but it makes the
+codebase far easier to maintain and extend.
+
+* **WWW::Spotify** – public facade and high‑level helpers (unchanged).
+* **WWW::Spotify::Client** – Moo::Role with OAuth / token management.
+* **WWW::Spotify::Endpoint** – Moo::Role providing the generic HTTP
+  verb helpers (`send_get_request`, `send_post_request`, …).
+* **WWW::Spotify::Response** – lightweight object that wraps a single
+  HTTP response and offers `json` and `get` (JSON::Path) convenience
+  methods.  The last response is available via
+  `WWW::Spotify->last_response`.
+
+The old, misspelled attribute `current_oath_code` has been fixed to
+`current_oauth_code`; a compatibility accessor is kept so existing code
+continues to run without modification.
+
 Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
 very good and provides the exact path of the item within the JSON in the lower left
 of the screen as you mouse over an element.
@@ -135,6 +154,18 @@ last action.
     my $image_url = $spotify->get( 'artists.items[0].images[0].url' );
 
 JSON::Path is the underlying library that actually parses the JSON.
+
+### last_response / WWW::Spotify::Response
+
+Every call stores the most recent HTTP response object:
+
+    my $resp = $spotify->last_response;
+    say $resp->status;
+    say $resp->content_type;
+
+You can use `$resp->json` to retrieve a decoded data structure or the
+`$resp->get('some.path')` helper which behaves like the top‑level
+`WWW::Spotify->get` method but operates on that specific response.
 
 ## query\_full\_url( $url , \[needs o\_auth\] )
 
