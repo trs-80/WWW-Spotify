@@ -1622,6 +1622,22 @@ version 0.013
 
 Wrapper for the Spotify Web API.
 
+Since version 0.014 the implementation has been modularised:
+
+    WWW::Spotify             – public wrapper (this module)
+    WWW::Spotify::Client     – role with authentication / OAuth helpers
+    WWW::Spotify::Endpoint   – role with low‑level HTTP verbs
+    WWW::Spotify::Response   – object wrapper around an HTTP response
+
+Splitting the code into roles and small classes keeps the public API
+completely intact while making the internals much easier to test and
+extend.  If you were subclassing C<WWW::Spotify> directly nothing
+changes – the roles are composed automatically.
+
+The attribute C<current_oath_code> was misspelled; it is now
+C<current_oauth_code>.  A shim accessor is retained for backwards
+compatibility.
+
 https://developer.spotify.com/web-api/
 
 Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
