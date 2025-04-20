@@ -66,7 +66,7 @@ ok( $crh_check == 1, 'customer_request_handler requires code ref' );
 $obj->custom_request_handler(
     sub {
         my $m = shift;
-        if ( $m->status() == 401 ) {
+        if ( $m->status() == 200 ) {
             return 2;
         }
     }

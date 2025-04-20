@@ -18,6 +18,7 @@ SKIP: {
     $obj->oauth_client_id($ENV{SPOTIFY_CLIENT_ID});
     $obj->oauth_client_secret($ENV{SPOTIFY_CLIENT_SECRET});
     $obj->get_client_credentials();
+    $obj->debug(1);
 
     sub show_and_pause {
         if ( $obj->debug() ) {
