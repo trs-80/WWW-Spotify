@@ -13,7 +13,7 @@ requires "Moo::Role" => "0";
 requires "Types::Standard" => "0";
 requires "URI::Escape" => "0";
 requires "WWW::Mechanize" => "0";
-requires "perl" => "5.010";
+requires "perl" => "5.012";
 requires "strict" => "0";
 requires "warnings" => "0";
 
@@ -24,7 +24,7 @@ on 'test' => sub {
   requires "Test::More" => "0";
   requires "Test::RequiresInternet" => "0";
   requires "Try::Tiny" => "0";
-  requires "perl" => "5.010";
+  requires "perl" => "5.012";
 };
 
 on 'test' => sub {
@@ -33,7 +33,7 @@ on 'test' => sub {
 
 on 'configure' => sub {
   requires "ExtUtils::MakeMaker" => "0";
-  requires "perl" => "5.010";
+  requires "perl" => "5.012";
 };
 
 on 'develop' => sub {

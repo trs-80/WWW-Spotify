@@ -24,7 +24,7 @@
       "configure" : {
          "requires" : {
             "ExtUtils::MakeMaker" : "0",
-            "perl" : "5.010"
+            "perl" : "5.012"
          }
       },
       "develop" : {
@@ -69,7 +69,7 @@
             "Types::Standard" : "0",
             "URI::Escape" : "0",
             "WWW::Mechanize" : "0",
-            "perl" : "5.010",
+            "perl" : "5.012",
             "strict" : "0",
             "warnings" : "0"
          }
@@ -85,7 +85,7 @@
             "Test::More" : "0",
             "Test::RequiresInternet" : "0",
             "Try::Tiny" : "0",
-            "perl" : "5.010"
+            "perl" : "5.012"
          }
       }
    },
