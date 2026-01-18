@@ -36,7 +36,8 @@ use MIME::Base64 qw( encode_base64 );
 my $CLIENT_ID     = $ENV{SPOTIFY_CLIENT_ID}     || die "Set SPOTIFY_CLIENT_ID\n";
 my $CLIENT_SECRET = $ENV{SPOTIFY_CLIENT_SECRET} || die "Set SPOTIFY_CLIENT_SECRET\n";
 my $PORT          = $ENV{SPOTIFY_CALLBACK_PORT} || 8888;
-my $REDIRECT_URI  = "http://localhost:$PORT/callback";
+my $REDIRECT_URI  = $ENV{SPOTIFY_REDIRECT_URI}  || "http://localhost:$PORT/callback";
+my $MANUAL_MODE   = $ENV{SPOTIFY_MANUAL_MODE}   || 0;
 
 # Scopes needed for the user auth tests
 my @SCOPES = qw(
@@ -58,47 +59,82 @@ $auth_url->query_form(
     show_dialog   => 'true',
 );
 
-# Start local server
-my $daemon = HTTP::Daemon->new(
-    LocalPort => $PORT,
-    ReuseAddr => 1,
-) or die "Could not start server on port $PORT: $!\n";
-
 print "=" x 70, "\n";
 print "Spotify OAuth User Token Helper\n";
 print "=" x 70, "\n\n";
 
-print "Starting callback server on http://localhost:$PORT\n\n";
+print "Redirect URI: $REDIRECT_URI\n\n";
 
-# Try to open browser automatically
-my $browser_opened = open_browser($auth_url->as_string);
-
-if ($browser_opened) {
-    print "Browser opened. Please authorize the application.\n\n";
-} else {
-    print "Could not open browser automatically.\n";
-    print "Please visit this URL to authorize:\n\n";
-    print "  $auth_url\n\n";
-}
-
-print "Waiting for callback...\n\n";
-
-# Wait for the callback
 my $code;
-while ( my $conn = $daemon->accept ) {
-    while ( my $req = $conn->get_request ) {
-        my $uri  = URI->new( $req->uri );
-        my $path = $uri->path;
 
-        if ( $path eq '/callback' ) {
-            $code = $uri->query_param('code');
-            my $error = $uri->query_param('error');
+if ($MANUAL_MODE) {
+    # Manual mode: user copies the code from the redirect URL
+    print "MANUAL MODE: No callback server needed.\n\n";
 
-            my $response;
-            if ($error) {
-                $response = HTTP::Response->new(400);
-                $response->content_type('text/html');
-                $response->content(<<"HTML");
+    # Try to open browser automatically
+    my $browser_opened = open_browser($auth_url->as_string);
+
+    if ($browser_opened) {
+        print "Browser opened. Please authorize the application.\n\n";
+    } else {
+        print "Please visit this URL to authorize:\n\n";
+        print "  $auth_url\n\n";
+    }
+
+    print "After authorizing, you'll be redirected to a URL like:\n";
+    print "  $REDIRECT_URI?code=AQXXXXX...\n\n";
+    print "(The page may not load - that's OK, we just need the URL)\n\n";
+    print "Paste the FULL redirect URL or just the code value:\n> ";
+
+    my $input = <STDIN>;
+    chomp($input);
+
+    if ($input =~ /code=([^&\s]+)/) {
+        $code = $1;
+    } else {
+        $code = $input;  # Assume they pasted just the code
+    }
+
+    die "No authorization code provided\n" unless $code;
+}
+else {
+    # Automatic mode: start callback server
+    my $daemon = HTTP::Daemon->new(
+        LocalPort => $PORT,
+        ReuseAddr => 1,
+    ) or die "Could not start server on port $PORT: $!\n";
+
+    print "Starting callback server on http://localhost:$PORT\n\n";
+
+    # Try to open browser automatically
+    my $browser_opened = open_browser($auth_url->as_string);
+
+    if ($browser_opened) {
+        print "Browser opened. Please authorize the application.\n\n";
+    } else {
+        print "Could not open browser automatically.\n";
+        print "Please visit this URL to authorize:\n\n";
+        print "  $auth_url\n\n";
+    }
+
+    print "Waiting for callback...\n\n";
+    print "(If the redirect fails, restart with SPOTIFY_MANUAL_MODE=1)\n\n";
+
+    # Wait for the callback
+    while ( my $conn = $daemon->accept ) {
+        while ( my $req = $conn->get_request ) {
+            my $uri  = URI->new( $req->uri );
+            my $path = $uri->path;
+
+            if ( $path eq '/callback' ) {
+                $code = $uri->query_param('code');
+                my $error = $uri->query_param('error');
+
+                my $response;
+                if ($error) {
+                    $response = HTTP::Response->new(400);
+                    $response->content_type('text/html');
+                    $response->content(<<"HTML");
 <!DOCTYPE html>
 <html>
 <head><title>Authorization Failed</title></head>
@@ -109,14 +145,14 @@ while ( my $conn = $daemon->accept ) {
 </body>
 </html>
 HTML
-                $conn->send_response($response);
-                $conn->close;
-                die "Authorization failed: $error\n";
-            }
+                    $conn->send_response($response);
+                    $conn->close;
+                    die "Authorization failed: $error\n";
+                }
 
-            $response = HTTP::Response->new(200);
-            $response->content_type('text/html');
-            $response->content(<<"HTML");
+                $response = HTTP::Response->new(200);
+                $response->content_type('text/html');
+                $response->content(<<"HTML");
 <!DOCTYPE html>
 <html>
 <head><title>Authorization Successful</title></head>
@@ -126,17 +162,18 @@ HTML
 </body>
 </html>
 HTML
-            $conn->send_response($response);
-            $conn->close;
-            last;
+                $conn->send_response($response);
+                $conn->close;
+                last;
+            }
+            else {
+                my $response = HTTP::Response->new(404);
+                $response->content('Not Found');
+                $conn->send_response($response);
+            }
         }
-        else {
-            my $response = HTTP::Response->new(404);
-            $response->content('Not Found');
-            $conn->send_response($response);
-        }
+        last if $code;
     }
-    last if $code;
 }
 
 die "No authorization code received\n" unless $code;
