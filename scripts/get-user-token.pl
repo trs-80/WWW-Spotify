@@ -3,13 +3,14 @@
 use strict;
 use warnings;
 
-use HTTP::Daemon;
 use HTTP::Response;
 use URI;
 use URI::QueryParam;
 use LWP::UserAgent;
 use JSON::MaybeXS qw( decode_json );
 use MIME::Base64 qw( encode_base64 );
+use File::Temp qw( tempdir );
+use File::Spec;
 
 # =============================================================================
 # Spotify OAuth User Token Helper
@@ -21,23 +22,24 @@ use MIME::Base64 qw( encode_base64 );
 # Usage:
 #   SPOTIFY_CLIENT_ID=xxx SPOTIFY_CLIENT_SECRET=yyy perl scripts/get-user-token.pl
 #
-# Or set the environment variables in your shell first.
-#
-# The script will:
-#   1. Start a local web server on port 8888
-#   2. Open your browser to Spotify's authorization page
-#   3. Wait for you to authorize the app
-#   4. Capture the authorization code from the callback
-#   5. Exchange it for an access token
-#   6. Print the token and example usage
+# Options (via environment variables):
+#   SPOTIFY_SSL=1          - Use HTTPS with self-signed certificate (default: 1)
+#   SPOTIFY_MANUAL_MODE=1  - Manual mode: paste the redirect URL instead of
+#                            running a callback server
+#   SPOTIFY_CALLBACK_PORT  - Port for callback server (default: 8888)
+#   SPOTIFY_REDIRECT_URI   - Custom redirect URI (overrides default)
 #
 # =============================================================================
 
 my $CLIENT_ID     = $ENV{SPOTIFY_CLIENT_ID}     || die "Set SPOTIFY_CLIENT_ID\n";
 my $CLIENT_SECRET = $ENV{SPOTIFY_CLIENT_SECRET} || die "Set SPOTIFY_CLIENT_SECRET\n";
 my $PORT          = $ENV{SPOTIFY_CALLBACK_PORT} || 8888;
-my $REDIRECT_URI  = $ENV{SPOTIFY_REDIRECT_URI}  || "http://localhost:$PORT/callback";
+my $USE_SSL       = exists $ENV{SPOTIFY_SSL} ? $ENV{SPOTIFY_SSL} : 1;
 my $MANUAL_MODE   = $ENV{SPOTIFY_MANUAL_MODE}   || 0;
+
+# Build default redirect URI based on SSL setting
+my $DEFAULT_SCHEME = $USE_SSL ? 'https' : 'http';
+my $REDIRECT_URI   = $ENV{SPOTIFY_REDIRECT_URI} || "$DEFAULT_SCHEME://localhost:$PORT/callback";
 
 # Scopes needed for the user auth tests
 my @SCOPES = qw(
@@ -63,7 +65,8 @@ print "=" x 70, "\n";
 print "Spotify OAuth User Token Helper\n";
 print "=" x 70, "\n\n";
 
-print "Redirect URI: $REDIRECT_URI\n\n";
+print "Redirect URI: $REDIRECT_URI\n";
+print "SSL Mode: ", ($USE_SSL ? "ON" : "OFF"), "\n\n";
 
 my $code;
 
@@ -99,12 +102,39 @@ if ($MANUAL_MODE) {
 }
 else {
     # Automatic mode: start callback server
-    my $daemon = HTTP::Daemon->new(
-        LocalPort => $PORT,
-        ReuseAddr => 1,
-    ) or die "Could not start server on port $PORT: $!\n";
+    my $daemon;
 
-    print "Starting callback server on http://localhost:$PORT\n\n";
+    if ($USE_SSL) {
+        # Generate self-signed certificate
+        my ($cert_file, $key_file) = generate_ssl_cert();
+
+        # Try to load HTTP::Daemon::SSL
+        eval { require HTTP::Daemon::SSL; };
+        if ($@) {
+            die "HTTP::Daemon::SSL is required for SSL mode.\n"
+              . "Install it with: cpanm HTTP::Daemon::SSL\n"
+              . "Or run with SPOTIFY_SSL=0 for non-SSL mode.\n";
+        }
+
+        $daemon = HTTP::Daemon::SSL->new(
+            LocalPort     => $PORT,
+            ReuseAddr     => 1,
+            SSL_cert_file => $cert_file,
+            SSL_key_file  => $key_file,
+        ) or die "Could not start SSL server on port $PORT: $!\n";
+
+        print "Starting HTTPS callback server on https://localhost:$PORT\n";
+        print "(Using self-signed certificate - browser will show a warning)\n\n";
+    }
+    else {
+        require HTTP::Daemon;
+        $daemon = HTTP::Daemon->new(
+            LocalPort => $PORT,
+            ReuseAddr => 1,
+        ) or die "Could not start server on port $PORT: $!\n";
+
+        print "Starting HTTP callback server on http://localhost:$PORT\n\n";
+    }
 
     # Try to open browser automatically
     my $browser_opened = open_browser($auth_url->as_string);
@@ -117,7 +147,11 @@ else {
         print "  $auth_url\n\n";
     }
 
-    print "Waiting for callback...\n\n";
+    print "Waiting for callback...\n";
+    if ($USE_SSL) {
+        print "(Accept the browser's certificate warning to continue)\n";
+    }
+    print "\n";
     print "(If the redirect fails, restart with SPOTIFY_MANUAL_MODE=1)\n\n";
 
     # Wait for the callback
@@ -211,6 +245,28 @@ print "  export SPOTIFY_USER_TOKEN='$token_data->{access_token}'\n\n";
 # Helper Functions
 # =============================================================================
 
+sub generate_ssl_cert {
+    my $cert_dir = tempdir( CLEANUP => 1 );
+    my $cert_file = File::Spec->catfile( $cert_dir, 'cert.pem' );
+    my $key_file  = File::Spec->catfile( $cert_dir, 'key.pem' );
+
+    print "Generating self-signed SSL certificate...\n";
+
+    my $openssl_cmd = qq{openssl req -x509 -newkey rsa:2048 }
+      . qq{-keyout "$key_file" -out "$cert_file" }
+      . qq{-days 1 -nodes -subj "/CN=localhost" }
+      . qq{2>/dev/null};
+
+    my $result = system($openssl_cmd);
+    if ( $result != 0 ) {
+        die "Failed to generate SSL certificate. Is openssl installed?\n"
+          . "Try running with SPOTIFY_SSL=0 or SPOTIFY_MANUAL_MODE=1\n";
+    }
+
+    print "SSL certificate generated.\n\n";
+    return ( $cert_file, $key_file );
+}
+
 sub exchange_code_for_token {
     my ($code) = @_;
 
@@ -269,8 +325,14 @@ get-user-token.pl - Obtain a Spotify user access token for testing
     export SPOTIFY_CLIENT_ID='your_client_id'
     export SPOTIFY_CLIENT_SECRET='your_client_secret'
 
-    # Run the script
+    # Run with HTTPS (default) - requires HTTP::Daemon::SSL
     perl scripts/get-user-token.pl
+
+    # Run with HTTP (if localhost HTTP is allowed)
+    SPOTIFY_SSL=0 perl scripts/get-user-token.pl
+
+    # Manual mode (paste redirect URL)
+    SPOTIFY_MANUAL_MODE=1 perl scripts/get-user-token.pl
 
 =head1 DESCRIPTION
 
@@ -278,21 +340,26 @@ This script helps you obtain a Spotify user access token using the OAuth
 Authorization Code flow. This is required for testing API endpoints that
 access user-specific data (playlists, saved tracks, followed artists, etc.).
 
+By default, the script uses HTTPS with a self-signed certificate, which
+Spotify requires for redirect URIs (except for http://localhost in some cases).
+
 The script will:
 
 =over 4
 
-=item 1. Start a local web server on port 8888
+=item 1. Generate a self-signed SSL certificate (if using HTTPS)
 
-=item 2. Open your browser to Spotify's authorization page
+=item 2. Start a local web server on port 8888
 
-=item 3. Wait for you to log in and authorize
+=item 3. Open your browser to Spotify's authorization page
 
-=item 4. Capture the callback with the authorization code
+=item 4. Wait for you to log in and authorize
 
-=item 5. Exchange the code for an access token
+=item 5. Capture the callback with the authorization code
 
-=item 6. Print the token and usage instructions
+=item 6. Exchange the code for an access token
+
+=item 7. Print the token and usage instructions
 
 =back
 
@@ -308,18 +375,43 @@ Your Spotify application's client ID.
 
 Your Spotify application's client secret.
 
+=item SPOTIFY_SSL (optional, default: 1)
+
+Set to 0 to use HTTP instead of HTTPS.
+
+=item SPOTIFY_MANUAL_MODE (optional, default: 0)
+
+Set to 1 to skip the callback server and manually paste the redirect URL.
+
 =item SPOTIFY_CALLBACK_PORT (optional, default: 8888)
 
 Port for the local callback server.
+
+=item SPOTIFY_REDIRECT_URI (optional)
+
+Custom redirect URI. Overrides the default.
 
 =back
 
 =head1 SPOTIFY APP SETUP
 
-Make sure your Spotify app has C<http://localhost:8888/callback> added
-as a Redirect URI in the app settings at:
+Make sure your Spotify app has the redirect URI added in the app settings at:
 
 L<https://developer.spotify.com/dashboard>
+
+For HTTPS mode (default), add: C<https://localhost:8888/callback>
+
+For HTTP mode, add: C<http://localhost:8888/callback>
+
+=head1 REQUIREMENTS
+
+=over 4
+
+=item * openssl command-line tool (for generating self-signed certificates)
+
+=item * HTTP::Daemon::SSL (for HTTPS mode) - install with: cpanm HTTP::Daemon::SSL
+
+=back
 
 =head1 AUTHOR
 
