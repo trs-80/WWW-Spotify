@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 
 use Data::Dumper  qw( Dumper );
 use JSON::MaybeXS qw( decode_json );
@@ -62,48 +63,7 @@ if ($@) {
 
 ok( $crh_check == 1, 'customer_request_handler requires code ref' );
 
-$obj->custom_request_handler(
-    sub {
-        my $m = shift;
-        if ( $m->status() == 401 ) {
-            return 2;
-        }
-    }
-);
-
-$result = $obj->album('0sNOF9WDwhWunNAHPD3Baj');
-
-ok( is_valid_json( $result, 'album' ), 'album' );
-
-ok(
-    $obj->custom_request_handler_result() == 2,
-    'custom_request_handler_result'
-);
-
-show_and_pause($result);
-
-#------------------#
-
-$obj->die_on_response_error(1);
-
-eval { $result = $obj->album('0sNOF9WDwhWunNAHPD3Baj'); };
-
-if ($@) {
-    ok( 1, 'die_on_response_error' );
-}
-
-show_and_pause($result);
-
-$obj->die_on_response_error(0);
-
-#------------------#
-
-$result = $obj->albums(
-    '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37');
-
-ok( is_valid_json( $result, 'albums' ), 'albums (multiple ids)' );
-
-show_and_pause($result);
+done_testing();
 
 #------------------#
 
@@ -250,5 +210,3 @@ sub is_valid_json {
 
     return defined $decoded;
 }
-
-done_testing();

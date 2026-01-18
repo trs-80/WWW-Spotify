@@ -1,4 +1,14 @@
-{{$NEXT}}
+0.014     2025-01-18
+- Refactored module into smaller focused units (Client, Endpoint, Response roles)
+- Added explicit use strict/warnings/5.010 to all modules
+- Fixed HTTP status code handling for POST/PUT/DELETE requests
+- Added URI encoding for path parameters
+- Improved test organization (separated user auth tests)
+- Security: Removed SSL verification bypass, fixed token leak in debug output
+- Fixed client_auth_required nesting in playlist and artist methods
+
+0.013     2024-01-01 00:00:00Z
+- Internal release for refactoring
 
 0.012     2022-10-19 16:30:23Z
 - Improved options for error handling (GH#11)
