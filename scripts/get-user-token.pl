@@ -3,7 +3,6 @@
 use strict;
 use warnings;
 
-use HTTP::Response;
 use URI;
 use URI::QueryParam;
 use LWP::UserAgent;
@@ -11,6 +10,7 @@ use JSON::MaybeXS qw( decode_json );
 use MIME::Base64 qw( encode_base64 );
 use File::Temp qw( tempdir );
 use File::Spec;
+use IO::Socket::SSL;
 
 # =============================================================================
 # Spotify OAuth User Token Helper
@@ -102,38 +102,35 @@ if ($MANUAL_MODE) {
 }
 else {
     # Automatic mode: start callback server
-    my $daemon;
+    my $server_socket;
 
     if ($USE_SSL) {
         # Generate self-signed certificate
         my ($cert_file, $key_file) = generate_ssl_cert();
 
-        # Try to load HTTP::Daemon::SSL
-        eval { require HTTP::Daemon::SSL; };
-        if ($@) {
-            die "HTTP::Daemon::SSL is required for SSL mode.\n"
-              . "Install it with: cpanm HTTP::Daemon::SSL\n"
-              . "Or run with SPOTIFY_SSL=0 for non-SSL mode.\n";
-        }
+        print "Starting HTTPS callback server on https://localhost:$PORT\n";
+        print "(Using self-signed certificate - browser will show a warning)\n\n";
 
-        $daemon = HTTP::Daemon::SSL->new(
+        $server_socket = IO::Socket::SSL->new(
+            LocalAddr     => '0.0.0.0',
             LocalPort     => $PORT,
+            Listen        => 5,
             ReuseAddr     => 1,
             SSL_cert_file => $cert_file,
             SSL_key_file  => $key_file,
-        ) or die "Could not start SSL server on port $PORT: $!\n";
-
-        print "Starting HTTPS callback server on https://localhost:$PORT\n";
-        print "(Using self-signed certificate - browser will show a warning)\n\n";
+        ) or die "Could not start SSL server on port $PORT: $! ($IO::Socket::SSL::SSL_ERROR)\n";
     }
     else {
-        require HTTP::Daemon;
-        $daemon = HTTP::Daemon->new(
-            LocalPort => $PORT,
-            ReuseAddr => 1,
-        ) or die "Could not start server on port $PORT: $!\n";
-
+        require IO::Socket::INET;
         print "Starting HTTP callback server on http://localhost:$PORT\n\n";
+
+        $server_socket = IO::Socket::INET->new(
+            LocalAddr => '0.0.0.0',
+            LocalPort => $PORT,
+            Listen    => 5,
+            ReuseAddr => 1,
+            Proto     => 'tcp',
+        ) or die "Could not start server on port $PORT: $!\n";
     }
 
     # Try to open browser automatically
@@ -155,59 +152,70 @@ else {
     print "(If the redirect fails, restart with SPOTIFY_MANUAL_MODE=1)\n\n";
 
     # Wait for the callback
-    while ( my $conn = $daemon->accept ) {
-        while ( my $req = $conn->get_request ) {
-            my $uri  = URI->new( $req->uri );
+    while (my $client = $server_socket->accept()) {
+        my $request = '';
+
+        # Read the HTTP request
+        while (my $line = <$client>) {
+            $request .= $line;
+            last if $line =~ /^\r?\n$/;
+        }
+
+        # Parse the request line
+        if ($request =~ /^GET\s+(\S+)\s+HTTP/i) {
+            my $request_uri = $1;
+            my $uri = URI->new($request_uri);
             my $path = $uri->path;
 
-            if ( $path eq '/callback' ) {
-                $code = $uri->query_param('code');
-                my $error = $uri->query_param('error');
+            if ($path eq '/callback') {
+                # Parse query string
+                my %params;
+                if ($request_uri =~ /\?(.+)$/) {
+                    for my $pair (split /&/, $1) {
+                        my ($key, $value) = split /=/, $pair, 2;
+                        $params{$key} = $value // '';
+                    }
+                }
+
+                $code = $params{code};
+                my $error = $params{error};
 
                 my $response;
                 if ($error) {
-                    $response = HTTP::Response->new(400);
-                    $response->content_type('text/html');
-                    $response->content(<<"HTML");
-<!DOCTYPE html>
-<html>
-<head><title>Authorization Failed</title></head>
-<body>
-<h1>Authorization Failed</h1>
-<p>Error: $error</p>
-<p>You can close this window.</p>
-</body>
-</html>
-HTML
-                    $conn->send_response($response);
-                    $conn->close;
+                    $response = "HTTP/1.1 400 Bad Request\r\n"
+                              . "Content-Type: text/html\r\n"
+                              . "Connection: close\r\n\r\n"
+                              . "<html><body><h1>Authorization Failed</h1>"
+                              . "<p>Error: $error</p></body></html>";
+                    print $client $response;
+                    close($client);
                     die "Authorization failed: $error\n";
                 }
 
-                $response = HTTP::Response->new(200);
-                $response->content_type('text/html');
-                $response->content(<<"HTML");
-<!DOCTYPE html>
-<html>
-<head><title>Authorization Successful</title></head>
-<body>
-<h1>Authorization Successful!</h1>
-<p>You can close this window and return to the terminal.</p>
-</body>
-</html>
-HTML
-                $conn->send_response($response);
-                $conn->close;
+                $response = "HTTP/1.1 200 OK\r\n"
+                          . "Content-Type: text/html\r\n"
+                          . "Connection: close\r\n\r\n"
+                          . "<html><body><h1>Authorization Successful!</h1>"
+                          . "<p>You can close this window and return to the terminal.</p></body></html>";
+                print $client $response;
+                close($client);
                 last;
             }
             else {
-                my $response = HTTP::Response->new(404);
-                $response->content('Not Found');
-                $conn->send_response($response);
+                my $response = "HTTP/1.1 404 Not Found\r\n"
+                             . "Content-Type: text/plain\r\n"
+                             . "Connection: close\r\n\r\n"
+                             . "Not Found";
+                print $client $response;
+                close($client);
             }
         }
-        last if $code;
+        else {
+            close($client);
+        }
     }
+
+    close($server_socket);
 }
 
 die "No authorization code received\n" unless $code;
@@ -325,7 +333,7 @@ get-user-token.pl - Obtain a Spotify user access token for testing
     export SPOTIFY_CLIENT_ID='your_client_id'
     export SPOTIFY_CLIENT_SECRET='your_client_secret'
 
-    # Run with HTTPS (default) - requires HTTP::Daemon::SSL
+    # Run with HTTPS (default)
     perl scripts/get-user-token.pl
 
     # Run with HTTP (if localhost HTTP is allowed)
@@ -409,7 +417,7 @@ For HTTP mode, add: C<http://localhost:8888/callback>
 
 =item * openssl command-line tool (for generating self-signed certificates)
 
-=item * HTTP::Daemon::SSL (for HTTPS mode) - install with: cpanm HTTP::Daemon::SSL
+=item * IO::Socket::SSL (usually already installed with Perl)
 
 =back
 
