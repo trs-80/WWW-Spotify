@@ -844,8 +844,8 @@ sub artist_top_tracks {
             params => {
                 'id'      => $artist_id,
                 'country' => $country,
-                client_auth_required => 1
-            }
+            },
+            client_auth_required => 1
         }
     );
 
@@ -854,15 +854,14 @@ sub artist_top_tracks {
 sub artist_related_artists {
     my $self      = shift;
     my $artist_id = shift;
-    my $country   = shift;
 
     return $self->send_get_request(
         {
             method => 'artist_related_artists',
-            params => { 
+            params => {
                 'id' => $artist_id,
-                client_auth_required => 1 
-            }
+            },
+            client_auth_required => 1
         }
     );
 

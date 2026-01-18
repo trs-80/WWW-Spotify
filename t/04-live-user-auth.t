@@ -39,18 +39,20 @@ SKIP: {
     ok( $result =~ /items/, 'get_current_user_playlists endpoint works' );
 
     # Check saved tracks (requires user-library-read scope)
+    # Returns JSON array string like '[true,false]', not a Perl array ref
     $result = $obj->check_users_saved_tracks(
         [ '4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M' ] );
-    ok( ref($result) eq 'ARRAY', 'check_users_saved_tracks endpoint works' );
+    ok( $result =~ /^\[/, 'check_users_saved_tracks endpoint works' );
 
     # Followed artists (requires user-follow-read scope)
     $result = $obj->get_followed_artists( limit => 20 );
     ok( $result =~ /artists/, 'get_followed_artists endpoint works' );
 
     # Check if user follows artists (requires user-follow-read scope)
+    # Returns JSON array string like '[true,false]', not a Perl array ref
     $result = $obj->check_if_user_follows_artists_or_users( 'artist',
         [ '2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E' ] );
-    ok( ref($result) eq 'ARRAY',
+    ok( $result =~ /^\[/,
         'check_if_user_follows_artists_or_users endpoint works' );
 }
 

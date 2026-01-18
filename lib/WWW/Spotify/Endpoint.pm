@@ -275,6 +275,11 @@ sub send_get_request {
                 $path =~ s/\{playlist_id\}/$playlist_id/;
             }
 
+            if ( $path =~ m/\{category_id\}/ && exists $attributes->{params}{category_id} ) {
+                my $category_id = $self->_uri_encode_param( $attributes->{params}{category_id} );
+                $path =~ s/\{category_id\}/$category_id/;
+            }
+
             warn "modified: $path\n" if $self->debug();
             $url .= $path;
         }
