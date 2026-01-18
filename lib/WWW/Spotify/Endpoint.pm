@@ -6,9 +6,9 @@ use warnings;
 
 use Moo::Role;
 
-use JSON::MaybeXS     qw( encode_json );
-use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT HTTP_CREATED HTTP_ACCEPTED );
-use URI::Escape       qw( uri_escape );
+use JSON::MaybeXS qw( encode_json );
+use HTTP::Status  qw( HTTP_OK HTTP_NO_CONTENT HTTP_CREATED HTTP_ACCEPTED );
+use URI::Escape   qw( uri_escape );
 
 #--------------------------------------------------------------------------
 # Generic HTTP verb helpers extracted from the main module.  They rely on
@@ -39,7 +39,8 @@ sub send_post_request {
     my $path = $self->_method_to_uri->{ $attributes->{method} };
 
     if ($path) {
-        $path =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
+        $path
+            =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
         $url .= $path;
     }
 
@@ -48,8 +49,7 @@ sub send_post_request {
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
+        || $self->force_client_auth() != 0 ) {
         if ( $self->current_access_token() eq q{} ) {
             warn "Needed to get access token\n" if $self->debug();
             $self->get_client_credentials();
@@ -58,8 +58,8 @@ sub send_post_request {
             'Authorization' => 'Bearer ' . $self->current_access_token() );
     }
 
-    my $content =
-      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    my $content
+        = $attributes->{params} ? encode_json( $attributes->{params} ) : '';
     $mech->add_header( 'Content-Type' => 'application/json' );
     $mech->post( $url, Content => $content );
 
@@ -75,21 +75,22 @@ sub send_post_request {
             $self->custom_request_handler()->($mech) );
     }
 
-    if (   $self->response_content_type() =~ /application\/json/i
-        && !$self->_is_success_status( $self->response_status() ) )
-    {
+    if ( $self->response_content_type() =~ /application\/json/i
+        && !$self->_is_success_status( $self->response_status() ) ) {
         warn "content type is ", $self->response_content_type(), "\n"
-          if $self->debug();
+            if $self->debug();
         $self->last_error( "POST request failed, status("
-              . $self->response_status()
-              . ") examine last_result for details" );
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     die $self->last_error()
-      if $self->die_on_response_error() && $self->last_error ne '';
+        if $self->die_on_response_error() && $self->last_error ne '';
 
-    return $self->format_results( $mech->content, $mech->ct(),
-        $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub send_delete_request {
@@ -102,7 +103,8 @@ sub send_delete_request {
     my $path = $self->_method_to_uri->{ $attributes->{method} };
 
     if ($path) {
-        $path =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
+        $path
+            =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
         $url .= $path;
     }
 
@@ -111,8 +113,7 @@ sub send_delete_request {
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
+        || $self->force_client_auth() != 0 ) {
         if ( $self->current_access_token() eq q{} ) {
             warn "Needed to get access token\n" if $self->debug();
             $self->get_client_credentials();
@@ -121,8 +122,8 @@ sub send_delete_request {
             'Authorization' => 'Bearer ' . $self->current_access_token() );
     }
 
-    my $content =
-      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    my $content
+        = $attributes->{params} ? encode_json( $attributes->{params} ) : '';
     $mech->add_header( 'Content-Type' => 'application/json' );
     $mech->delete( $url, Content => $content );
 
@@ -140,17 +141,19 @@ sub send_delete_request {
 
     if ( !$self->_is_success_status( $self->response_status() ) ) {
         warn "DELETE request failed with status ", $self->response_status(),
-          "\n" if $self->debug();
+            "\n" if $self->debug();
         $self->last_error( "DELETE request failed, status("
-              . $self->response_status()
-              . ") examine last_result for details" );
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     die $self->last_error()
-      if $self->die_on_response_error() && $self->last_error ne '';
+        if $self->die_on_response_error() && $self->last_error ne '';
 
-    return $self->format_results( $mech->content, $mech->ct(),
-        $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub send_put_request {
@@ -163,7 +166,8 @@ sub send_put_request {
     my $path = $self->_method_to_uri->{ $attributes->{method} };
 
     if ($path) {
-        $path =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
+        $path
+            =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
         $url .= $path;
     }
 
@@ -172,8 +176,7 @@ sub send_put_request {
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
+        || $self->force_client_auth() != 0 ) {
         if ( $self->current_access_token() eq q{} ) {
             warn "Needed to get access token\n" if $self->debug();
             $self->get_client_credentials();
@@ -182,8 +185,8 @@ sub send_put_request {
             'Authorization' => 'Bearer ' . $self->current_access_token() );
     }
 
-    my $content =
-      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    my $content
+        = $attributes->{params} ? encode_json( $attributes->{params} ) : '';
     $mech->add_header( 'Content-Type' => 'application/json' );
     $mech->put( $url, Content => $content );
 
@@ -201,17 +204,19 @@ sub send_put_request {
 
     if ( !$self->_is_success_status( $self->response_status() ) ) {
         warn "PUT request failed with status ", $self->response_status(), "\n"
-          if $self->debug();
+            if $self->debug();
         $self->last_error( "PUT request failed, status("
-              . $self->response_status()
-              . ") examine last_result for details" );
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     die $self->last_error()
-      if $self->die_on_response_error() && $self->last_error ne '';
+        if $self->die_on_response_error() && $self->last_error ne '';
 
-    return $self->format_results( $mech->content, $mech->ct(),
-        $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub send_get_request {
@@ -219,12 +224,14 @@ sub send_get_request {
     my $attributes = shift;
 
     my $uri_params = q{};
-    warn "attributes: " . (defined $attributes ? 'defined' : 'undef') . "\n"
-      if $self->debug();
+    warn "attributes: "
+        . ( defined $attributes ? 'defined' : 'undef' ) . "\n"
+        if $self->debug();
 
     $self->last_error(q{});
 
-    if ( defined $attributes->{extras} && ref $attributes->{extras} eq 'HASH' ) {
+    if ( defined $attributes->{extras}
+        && ref $attributes->{extras} eq 'HASH' ) {
         my @tmp;
         foreach my $key ( keys %{ $attributes->{extras} } ) {
             push @tmp, "$key=$attributes->{extras}{$key}";
@@ -233,7 +240,8 @@ sub send_get_request {
         warn "uri_params: $uri_params\n" if $self->debug();
     }
 
-    if ( exists $attributes->{format} && $attributes->{format} =~ /json|jsonp/ ) {
+    if ( exists $attributes->{format}
+        && $attributes->{format} =~ /json|jsonp/ ) {
         $self->result_format( $attributes->{format} );
         delete $attributes->{format};
     }
@@ -256,31 +264,41 @@ sub send_get_request {
                 $path =~ s/\{type\}/$type/;
             }
             elsif ( $path =~ m/\{id\}/ && exists $attributes->{params}{id} ) {
-                my $id = $self->_uri_encode_param( $attributes->{params}{id} );
+                my $id
+                    = $self->_uri_encode_param( $attributes->{params}{id} );
                 $path =~ s/\{id\}/$id/;
             }
-            elsif ( $path =~ m/\{ids\}/ && exists $attributes->{params}{ids} ) {
-                my $ids = $self->_uri_encode_param( $attributes->{params}{ids} );
+            elsif ( $path =~ m/\{ids\}/ && exists $attributes->{params}{ids} )
+            {
+                my $ids
+                    = $self->_uri_encode_param( $attributes->{params}{ids} );
                 $path =~ s/\{ids\}/$ids/;
             }
 
             if ( $path =~ m/\{country\}/ ) {
-                my $country = $self->_uri_encode_param( $attributes->{params}{country} );
+                my $country = $self->_uri_encode_param(
+                    $attributes->{params}{country} );
                 $path =~ s/\{country\}/$country/;
             }
 
-            if ( $path =~ m/\{user_id\}/ && exists $attributes->{params}{user_id} ) {
-                my $user_id = $self->_uri_encode_param( $attributes->{params}{user_id} );
+            if ( $path =~ m/\{user_id\}/
+                && exists $attributes->{params}{user_id} ) {
+                my $user_id = $self->_uri_encode_param(
+                    $attributes->{params}{user_id} );
                 $path =~ s/\{user_id\}/$user_id/;
             }
 
-            if ( $path =~ m/\{playlist_id\}/ && exists $attributes->{params}{playlist_id} ) {
-                my $playlist_id = $self->_uri_encode_param( $attributes->{params}{playlist_id} );
+            if ( $path =~ m/\{playlist_id\}/
+                && exists $attributes->{params}{playlist_id} ) {
+                my $playlist_id = $self->_uri_encode_param(
+                    $attributes->{params}{playlist_id} );
                 $path =~ s/\{playlist_id\}/$playlist_id/;
             }
 
-            if ( $path =~ m/\{category_id\}/ && exists $attributes->{params}{category_id} ) {
-                my $category_id = $self->_uri_encode_param( $attributes->{params}{category_id} );
+            if ( $path =~ m/\{category_id\}/
+                && exists $attributes->{params}{category_id} ) {
+                my $category_id = $self->_uri_encode_param(
+                    $attributes->{params}{category_id} );
                 $path =~ s/\{category_id\}/$category_id/;
             }
 
@@ -299,13 +317,13 @@ sub send_get_request {
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
+        || $self->force_client_auth() != 0 ) {
         if ( $self->current_access_token() eq q{} ) {
             warn "Needed to get access token\n" if $self->debug();
             $self->get_client_credentials();
         }
-        $mech->add_header( 'Authorization' => 'Bearer ' . $self->current_access_token() );
+        $mech->add_header(
+            'Authorization' => 'Bearer ' . $self->current_access_token() );
     }
 
     $mech->get($url);
@@ -318,20 +336,26 @@ sub send_get_request {
     $self->response_content_type( $mech->content_type() );
 
     if ( $self->_has_custom_request_handler() ) {
-        $self->_set_custom_request_handler_result( $self->custom_request_handler()->($mech) );
+        $self->_set_custom_request_handler_result(
+            $self->custom_request_handler()->($mech) );
     }
 
-    if (   $self->response_content_type() =~ /application\/json/i
-        && !$self->_is_success_status( $self->response_status() ) )
-    {
-        warn "content type is " . $self->response_content_type() . "\n" if $self->debug();
-        $self->last_error( "GET request failed, status(" . $self->response_status() . ") examine last_result for details" );
+    if ( $self->response_content_type() =~ /application\/json/i
+        && !$self->_is_success_status( $self->response_status() ) ) {
+        warn "content type is " . $self->response_content_type() . "\n"
+            if $self->debug();
+        $self->last_error( "GET request failed, status("
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     die $self->last_error()
-      if $self->die_on_response_error() && $self->last_error ne '';
+        if $self->die_on_response_error() && $self->last_error ne '';
 
-    return $self->format_results( $mech->content, $mech->ct(), $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 # --------------------------------------------------------------
@@ -343,11 +367,13 @@ sub query_full_url {
     my $url                  = shift;
     my $client_auth_required = shift || 0;
 
-    return $self->send_get_request({
-        method               => 'query_full_url',
-        url                  => $url,
-        client_auth_required => $client_auth_required,
-    });
+    return $self->send_get_request(
+        {
+            method               => 'query_full_url',
+            url                  => $url,
+            client_auth_required => $client_auth_required,
+        }
+    );
 }
 
 # A tiny helper that gives us access to the private %method_to_uri mapping
@@ -355,7 +381,7 @@ sub query_full_url {
 # reused rather than duplicated.
 
 sub _method_to_uri {
-    no strict 'refs'; ## no critic
+    no strict 'refs';    ## no critic
     return \%{ 'WWW::Spotify::' . 'method_to_uri' };
 }
 

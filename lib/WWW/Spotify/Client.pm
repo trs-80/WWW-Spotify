@@ -6,8 +6,8 @@ use warnings;
 
 use Moo::Role;
 
-use MIME::Base64      qw( encode_base64 );
-use JSON::MaybeXS     qw( decode_json );
+use MIME::Base64  qw( encode_base64 );
+use JSON::MaybeXS qw( decode_json );
 
 #--------------------------------------------------------------------------
 # Requirements – attributes/methods that must be supplied by the consuming
@@ -15,16 +15,16 @@ use JSON::MaybeXS     qw( decode_json );
 #--------------------------------------------------------------------------
 
 requires qw(
-  oauth_client_id
-  oauth_client_secret
-  oauth_authorize_url
-  oauth_token_url
-  oauth_redirect_uri
-  current_oauth_code
-  current_access_token
-  ua
-  _mech
-  debug
+    oauth_client_id
+    oauth_client_secret
+    oauth_authorize_url
+    oauth_token_url
+    oauth_redirect_uri
+    current_oauth_code
+    current_access_token
+    ua
+    _mech
+    debug
 );
 
 #--------------------------------------------------------------------------
@@ -39,8 +39,8 @@ sub get_oauth_authorize {
     }
 
     my $grant_type = 'authorization_code';
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $client_and_secret
+        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
     chomp($encoded);
     $encoded =~ s/\n//g;
@@ -71,15 +71,13 @@ sub get_client_credentials {
     }
 
     my $grant_type = 'client_credentials';
-    my $mech = $self->_mech;
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $mech       = $self->_mech;
+    my $client_and_secret
+        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
     my $url     = $self->oauth_token_url();
 
-    my $extra = {
-        grant_type => $grant_type
-    };
+    my $extra = { grant_type => $grant_type };
     if ($scope) {
         $extra->{scope} = $scope;
     }
@@ -128,8 +126,8 @@ sub get_access_token {
 
     $grant_type ||= 'authorization_code';
 
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $client_and_secret
+        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
 
     my $encoded = encode_base64($client_and_secret);
     chomp($encoded);

@@ -13,11 +13,12 @@ our $VERSION = '0.013';
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
 use JSON::Path        ();
+
 # JSON::MaybeXS exports encode_json only when asked; we now need both
-use JSON::MaybeXS     qw( decode_json encode_json );
-use MIME::Base64      qw( encode_base64 );
-use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
-use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT );
+use JSON::MaybeXS   qw( decode_json encode_json );
+use MIME::Base64    qw( encode_base64 );
+use Types::Standard qw( Bool InstanceOf Int Str CodeRef );
+use HTTP::Status    qw( HTTP_OK HTTP_NO_CONTENT );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -220,8 +221,8 @@ has 'die_on_response_error' => (
 # ------------------------------------------------------------------
 
 with qw(
-  WWW::Spotify::Client
-  WWW::Spotify::Endpoint
+    WWW::Spotify::Client
+    WWW::Spotify::Endpoint
 );
 
 my %api_call_options = (
@@ -433,8 +434,9 @@ my %api_call_options = (
         info   => 'Get Recommendations',
         type   => 'GET',
         method => 'get_recommendations',
-        params =>
-          [ 'seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market' ]
+        params => [
+            'seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market'
+        ]
     },
 
     '/v1/me/following|GET' => {
@@ -614,8 +616,6 @@ sub _method_to_uri {
     return \%method_to_uri;
 }
 
-
-
 sub _set_response_headers {
     my $self = shift;
     my $mech = shift;
@@ -645,9 +645,9 @@ sub format_results {
     require WWW::Spotify::Response;
 
     my $resp = WWW::Spotify::Response->new(
-        raw           => $content,
-        content_type  => $_[0],
-        status        => $_[1],
+        raw          => $content,
+        content_type => $_[0],
+        status       => $_[1],
     );
 
     $self->last_response($resp);
@@ -658,7 +658,6 @@ sub format_results {
 
     return $content;
 }
-
 
 sub get {
 
@@ -671,9 +670,9 @@ sub get {
     # on dependencies.  However I would not have been
     # able to do this in so few lines without it
 
-# Making a generalization here
-# if you use a * you are looking for an array
-# if you don't have an * you want the first 1 (or should I say you get the first 1)
+    # Making a generalization here
+    # if you use a * you are looking for an array
+    # if you don't have an * you want the first 1 (or should I say you get the first 1)
 
     my ( $self, @return ) = @_;
 
@@ -743,8 +742,8 @@ sub album {
 
     return $self->send_get_request(
         {
-            method => 'album',
-            params => { 'id' => $id },
+            method               => 'album',
+            params               => { 'id' => $id },
             client_auth_required => 1
         }
     );
@@ -760,8 +759,8 @@ sub albums {
 
     return $self->send_get_request(
         {
-            method => 'albums',
-            params => { 'ids' => $ids },
+            method               => 'albums',
+            params               => { 'ids' => $ids },
             client_auth_required => 1
         }
     );
@@ -780,9 +779,9 @@ sub albums_tracks {
 
     return $self->send_get_request(
         {
-            method => 'albums_tracks',
-            params => { 'id' => $album_id },
-            extras => $extras,
+            method               => 'albums_tracks',
+            params               => { 'id' => $album_id },
+            extras               => $extras,
             client_auth_required => 1
         }
     );
@@ -795,8 +794,8 @@ sub artist {
 
     return $self->send_get_request(
         {
-            method => 'artist',
-            params => { 'id' => $id },
+            method               => 'artist',
+            params               => { 'id' => $id },
             client_auth_required => 1
         }
     );
@@ -813,8 +812,8 @@ sub artists {
 
     return $self->send_get_request(
         {
-            method => 'artists',
-            params => { 'ids' => $artists },
+            method               => 'artists',
+            params               => { 'ids' => $artists },
             client_auth_required => 1
         }
     );
@@ -828,9 +827,9 @@ sub artist_albums {
 
     return $self->send_get_request(
         {
-            method => 'artist_albums',
-            params => { 'id' => $artist_id },
-            extras => $extras,
+            method               => 'artist_albums',
+            params               => { 'id' => $artist_id },
+            extras               => $extras,
             client_auth_required => 1
         }
     );
@@ -891,7 +890,7 @@ sub next_result_set {
         $result = decode_json($result);
     }
 
-    return unless $result && ref($result) eq 'HASH';
+    return unless $result                && ref($result) eq 'HASH';
     return unless exists $result->{next} && $result->{next};
 
     return $self->query_full_url( $result->{next}, 1 );
@@ -906,7 +905,7 @@ sub previous_result_set {
         $result = decode_json($result);
     }
 
-    return unless $result && ref($result) eq 'HASH';
+    return unless $result                    && ref($result) eq 'HASH';
     return unless exists $result->{previous} && $result->{previous};
 
     return $self->query_full_url( $result->{previous}, 1 );
@@ -1010,8 +1009,8 @@ sub user {
     my $user_id = shift;
     return $self->send_get_request(
         {
-            method => 'user',
-            params => { 'user_id' => $user_id },
+            method               => 'user',
+            params               => { 'user_id' => $user_id },
             client_auth_required => 1
         }
     );
@@ -1022,8 +1021,8 @@ sub get_playlist {
     my ( $self, $playlist_id ) = @_;
     return $self->send_get_request(
         {
-            method => 'get_playlist',
-            params => { 'playlist_id' => $playlist_id },
+            method               => 'get_playlist',
+            params               => { 'playlist_id' => $playlist_id },
             client_auth_required => 1
         }
     );
@@ -1033,9 +1032,9 @@ sub get_playlist_items {
     my ( $self, $playlist_id, $extras ) = @_;
     return $self->send_get_request(
         {
-            method => 'get_playlist_items',
-            params => { 'playlist_id' => $playlist_id },
-            extras => $extras,
+            method               => 'get_playlist_items',
+            params               => { 'playlist_id' => $playlist_id },
+            extras               => $extras,
             client_auth_required => 1
         }
     );
@@ -1061,8 +1060,8 @@ sub get_current_user_playlists {
     my ( $self, $extras ) = @_;
     return $self->send_get_request(
         {
-            method => 'get_current_user_playlists',
-            extras => $extras,
+            method               => 'get_current_user_playlists',
+            extras               => $extras,
             client_auth_required => 1
         }
     );
@@ -1092,8 +1091,8 @@ sub remove_user_saved_tracks {
 
     return $self->send_delete_request(
         {
-            method => 'remove_user_saved_tracks',
-            params => { 'ids' => $ids },
+            method               => 'remove_user_saved_tracks',
+            params               => { 'ids' => $ids },
             client_auth_required => 1
         }
     );
@@ -1186,7 +1185,7 @@ sub follow_artists_or_users {
     my ( $self, $type, $ids ) = @_;
 
     die "Type must be 'artist' or 'user'"
-      unless $type eq 'artist' or $type eq 'user';
+        unless $type eq 'artist' or $type eq 'user';
 
     my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
 
@@ -1206,7 +1205,7 @@ sub unfollow_artists_or_users {
     my ( $self, $type, $ids ) = @_;
 
     die "Type must be 'artist' or 'user'"
-      unless $type eq 'artist' or $type eq 'user';
+        unless $type eq 'artist' or $type eq 'user';
 
     my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
 
@@ -1226,7 +1225,7 @@ sub check_if_user_follows_artists_or_users {
     my ( $self, $type, $ids ) = @_;
 
     die "Type must be 'artist' or 'user'"
-      unless $type eq 'artist' or $type eq 'user';
+        unless $type eq 'artist' or $type eq 'user';
 
     my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
 
@@ -1315,171 +1314,170 @@ sub get_audiobook_chapters {
 }
 
 sub get_users_saved_audiobooks {
-    my ($self, $limit, $offset) = @_;
-    
+    my ( $self, $limit, $offset ) = @_;
+
     my $params = {};
-    $params->{limit} = $limit if $limit;
+    $params->{limit}  = $limit  if $limit;
     $params->{offset} = $offset if defined $offset;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_users_saved_audiobooks',
-            params => $params,
+            method               => 'get_users_saved_audiobooks',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub save_audiobooks_for_current_user {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Audiobook IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_put_request(
         {
-            method => 'save_audiobooks_for_current_user',
-            params => { ids => $id_list },
+            method               => 'save_audiobooks_for_current_user',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
-
 sub remove_users_saved_audiobooks {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Audiobook IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_delete_request(
         {
-            method => 'remove_users_saved_audiobooks',
-            params => { ids => $id_list },
+            method               => 'remove_users_saved_audiobooks',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub check_users_saved_audiobooks {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Audiobook IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_get_request(
         {
-            method => 'check_users_saved_audiobooks',
-            params => { ids => $id_list },
+            method               => 'check_users_saved_audiobooks',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub get_users_saved_shows {
-    my ($self, %params) = @_;
-    
+    my ( $self, %params ) = @_;
+
     return $self->send_get_request(
         {
-            method => 'get_users_saved_shows',
-            params => \%params,
+            method               => 'get_users_saved_shows',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub save_shows_for_current_user {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Show IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_put_request(
         {
-            method => 'save_shows_for_current_user',
-            params => { ids => $id_list },
+            method               => 'save_shows_for_current_user',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub check_users_saved_shows {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Show IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_get_request(
         {
-            method => 'check_users_saved_shows',
-            params => { ids => $id_list },
+            method               => 'check_users_saved_shows',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub get_categories {
-    my ($self, %params) = @_;
-    
+    my ( $self, %params ) = @_;
+
     return $self->send_get_request(
         {
-            method => 'get_categories',
-            params => \%params,
+            method               => 'get_categories',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_category {
-    my ($self, $category_id, %params) = @_;
-    
+    my ( $self, $category_id, %params ) = @_;
+
     die "Category ID is required" unless $category_id;
-    
+
     $params{category_id} = $category_id;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_category',
-            params => \%params,
+            method               => 'get_category',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_chapter {
-    my ($self, $id, %params) = @_;
-    
+    my ( $self, $id, %params ) = @_;
+
     die "Chapter ID is required" unless $id;
-    
+
     $params{id} = $id;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_chapter',
-            params => \%params,
+            method               => 'get_chapter',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_several_chapters {
-    my ($self, $ids, %params) = @_;
-    
+    my ( $self, $ids, %params ) = @_;
+
     die "Chapter IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     $params{ids} = $id_list;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_several_chapters',
-            params => \%params,
+            method               => 'get_several_chapters',
+            params               => \%params,
             client_auth_required => 1
         }
     );
@@ -1487,10 +1485,10 @@ sub get_several_chapters {
 
 sub get_available_genre_seeds {
     my ($self) = @_;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_available_genre_seeds',
+            method               => 'get_available_genre_seeds',
             client_auth_required => 1
         }
     );
@@ -1498,62 +1496,62 @@ sub get_available_genre_seeds {
 
 sub get_available_markets {
     my ($self) = @_;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_available_markets',
+            method               => 'get_available_markets',
             client_auth_required => 1
         }
     );
 }
 
 sub get_show {
-    my ($self, $id, $market) = @_;
-    
+    my ( $self, $id, $market ) = @_;
+
     die "Show ID is required" unless $id;
-    
+
     my $params = { id => $id };
     $params->{market} = $market if $market;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_show',
-            params => $params,
+            method               => 'get_show',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_several_shows {
-    my ($self, $ids, $market) = @_;
-    
+    my ( $self, $ids, $market ) = @_;
+
     die "Show IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     my $params = { ids => $id_list };
     $params->{market} = $market if $market;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_several_shows',
-            params => $params,
+            method               => 'get_several_shows',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_show_episodes {
-    my ($self, $id, %params) = @_;
-    
+    my ( $self, $id, %params ) = @_;
+
     die "Show ID is required" unless $id;
-    
+
     $params{id} = $id;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_show_episodes',
-            params => \%params,
+            method               => 'get_show_episodes',
+            params               => \%params,
             client_auth_required => 1
         }
     );

@@ -23,7 +23,10 @@ SKIP: {
     my $result;
 
     ok( $obj->oauth_client_id( $ENV{SPOTIFY_CLIENT_ID} ), 'set client id' );
-    ok( $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ), 'set client secret' );
+    ok(
+        $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ),
+        'set client secret'
+    );
     ok( $obj->get_client_credentials(), 'get client credentials' );
 
     # Album endpoints
@@ -61,11 +64,15 @@ SKIP: {
     ok( $result =~ /display_name/, 'user endpoint works' );
 
     # Browse endpoints
-    $result = $obj->browse_new_releases( { country => 'US', limit => 5, offset => 2 } );
+    $result = $obj->browse_new_releases(
+        { country => 'US', limit => 5, offset => 2 } );
     ok( $result =~ /albums/, 'browse_new_releases endpoint works' );
 
     # Search endpoint
-    $result = $obj->search( 'tania bowra', 'artist', { limit => 15, offset => 0 } );
+    $result = $obj->search(
+        'tania bowra', 'artist',
+        { limit => 15, offset => 0 }
+    );
     ok( $result =~ /artists/, 'search endpoint works' );
 
     # Markets endpoint

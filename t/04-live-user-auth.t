@@ -26,7 +26,9 @@ use WWW::Spotify ();
 # -----------------------------------------------------------------------------
 
 SKIP: {
-    skip 'No SPOTIFY_USER_TOKEN - user auth tests require a user access token', 4
+    skip
+        'No SPOTIFY_USER_TOKEN - user auth tests require a user access token',
+        4
         unless $ENV{SPOTIFY_USER_TOKEN};
 
     my $obj = WWW::Spotify->new();
@@ -35,7 +37,8 @@ SKIP: {
     my $result;
 
     # Current user's playlists (requires playlist-read-private scope)
-    $result = $obj->get_current_user_playlists( { limit => 20, offset => 0 } );
+    $result
+        = $obj->get_current_user_playlists( { limit => 20, offset => 0 } );
     ok( $result =~ /items/, 'get_current_user_playlists endpoint works' );
 
     # Check saved tracks (requires user-library-read scope)
@@ -50,10 +53,14 @@ SKIP: {
 
     # Check if user follows artists (requires user-follow-read scope)
     # Returns JSON array string like '[true,false]', not a Perl array ref
-    $result = $obj->check_if_user_follows_artists_or_users( 'artist',
-        [ '2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E' ] );
-    ok( $result =~ /^\[/,
-        'check_if_user_follows_artists_or_users endpoint works' );
+    $result = $obj->check_if_user_follows_artists_or_users(
+        'artist',
+        [ '2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E' ]
+    );
+    ok(
+        $result =~ /^\[/,
+        'check_if_user_follows_artists_or_users endpoint works'
+    );
 }
 
 # -----------------------------------------------------------------------------
@@ -76,25 +83,30 @@ SKIP: {
 
     my $result;
 
-    TODO: {
+TODO: {
         local $TODO = 'Playlist endpoints may require investigation';
 
         # Public playlist endpoints (should work with client credentials)
         $result = $obj->get_playlist('37i9dQZF1DXcBWIGoYBM5M');
         ok( $result =~ /name/, 'get_playlist endpoint works' );
 
-        $result = $obj->get_playlist_items( '37i9dQZF1DXcBWIGoYBM5M',
-            { limit => 10, offset => 0 } );
+        $result = $obj->get_playlist_items(
+            '37i9dQZF1DXcBWIGoYBM5M',
+            { limit => 10, offset => 0 }
+        );
         ok( $result =~ /items/, 'get_playlist_items endpoint works' );
     }
 
-    TODO: {
-        local $TODO = 'Audio features/analysis endpoints may be deprecated or restricted';
+TODO: {
+        local $TODO
+            = 'Audio features/analysis endpoints may be deprecated or restricted';
 
         $result = $obj->get_several_tracks_audio_features(
             [ '4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M' ] );
-        ok( $result =~ /audio_features/,
-            'get_several_tracks_audio_features endpoint works' );
+        ok(
+            $result =~ /audio_features/,
+            'get_several_tracks_audio_features endpoint works'
+        );
 
         $result = $obj->get_track_audio_features('4iV5W9uYEdYUVa79Axb7Rh');
         ok( $result =~ /id/, 'get_track_audio_features endpoint works' );
@@ -103,8 +115,9 @@ SKIP: {
         ok( $result =~ /track/, 'get_track_audio_analysis endpoint works' );
     }
 
-    TODO: {
-        local $TODO = 'Recommendations endpoint may be deprecated or restricted';
+TODO: {
+        local $TODO
+            = 'Recommendations endpoint may be deprecated or restricted';
 
         $result = $obj->get_recommendations(
             seed_artists => '4NHQUGzhtTLFvgF5SZesLK',
