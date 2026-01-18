@@ -632,7 +632,7 @@ sub format_results {
     $self->last_result($content);
 
     # FIX ME / TEST ME
-    # vefify both of these work and return the *same* perl hash
+    # verify both of these work and return the *same* perl hash
 
     # when / how should we check the status? Do we need to?
     # if so then we need to create another method that will
@@ -859,10 +859,10 @@ sub artist_related_artists {
     return $self->send_get_request(
         {
             method => 'artist_related_artists',
-            params => { 'id' => $artist_id }
-
-            #            'country' => $country
-            #          }
+            params => { 
+                'id' => $artist_id,
+                client_auth_required => 1 
+            }
         }
     );
 
@@ -870,19 +870,43 @@ sub artist_related_artists {
 
 sub me {
     my $self = shift;
-    return;
+
+    return $self->send_get_request(
+        {
+            method               => 'me',
+            client_auth_required => 1
+        }
+    );
 }
 
 sub next_result_set {
     my $self   = shift;
     my $result = shift;
-    return;
+
+    # Parse JSON result if it's a string
+    if ( $result && !ref($result) ) {
+        $result = decode_json($result);
+    }
+
+    return unless $result && ref($result) eq 'HASH';
+    return unless exists $result->{next} && $result->{next};
+
+    return $self->query_full_url( $result->{next}, 1 );
 }
 
 sub previous_result_set {
     my $self   = shift;
     my $result = shift;
-    return;
+
+    # Parse JSON result if it's a string
+    if ( $result && !ref($result) ) {
+        $result = decode_json($result);
+    }
+
+    return unless $result && ref($result) eq 'HASH';
+    return unless exists $result->{previous} && $result->{previous};
+
+    return $self->query_full_url( $result->{previous}, 1 );
 }
 
 sub search {

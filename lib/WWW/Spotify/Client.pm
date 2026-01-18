@@ -35,7 +35,6 @@ sub get_oauth_authorize {
     }
 
     my $grant_type = 'authorization_code';
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $client_and_secret =
       $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
@@ -68,7 +67,6 @@ sub get_client_credentials {
     }
 
     my $grant_type = 'client_credentials';
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
     my $client_and_secret =
       $self->oauth_client_id() . ':' . $self->oauth_client_secret();
@@ -126,20 +124,18 @@ sub get_access_token {
 
     $grant_type ||= 'authorization_code';
 
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $client_and_secret =
       $self->oauth_client_id() . ':' . $self->oauth_client_secret();
 
-    print $client_and_secret, "\n";
-    print $grant_type,        "\n";
     my $encoded = encode_base64($client_and_secret);
-    print $encoded, "\n";
+    chomp($encoded);
+    $encoded =~ s/\n//g;
 
     my $url = $self->oauth_token_url;
-    print $url, "\n";
+
     my $extra = {
         grant_type   => $grant_type,
-        code         => 'code',
+        code         => $self->current_oauth_code(),
         redirect_uri => $self->oauth_redirect_uri
     };
     if ($scope) {
@@ -151,7 +147,18 @@ sub get_access_token {
 
     $mech->post( $url, [$extra] );
 
-    print $mech->content(), "\n";
+    my $content = $mech->content();
+    warn "get_access_token response: $content\n" if $self->debug();
+
+    if ( $content =~ /access_token/ ) {
+        my $result = decode_json($content);
+        if ( $result->{'access_token'} ) {
+            $self->current_access_token( $result->{'access_token'} );
+        }
+        return $result;
+    }
+
+    return;
 }
 
 1;

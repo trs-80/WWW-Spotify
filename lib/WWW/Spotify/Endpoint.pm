@@ -28,7 +28,6 @@ sub send_post_request {
 
     warn "$url\n" if $self->debug;
 
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
@@ -92,7 +91,6 @@ sub send_delete_request {
 
     warn "$url\n" if $self->debug;
 
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
@@ -154,7 +152,6 @@ sub send_put_request {
 
     warn "$url\n" if $self->debug;
 
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
@@ -270,7 +267,6 @@ sub send_get_request {
 
     warn "$url\n" if $self->debug;
 
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
