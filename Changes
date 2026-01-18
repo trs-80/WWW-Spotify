@@ -1,4 +1,4 @@
-0.014     {{$NEXT}}
+0.014     2025-01-18
 - Refactored module into smaller focused units (Client, Endpoint, Response roles)
 - Added explicit use strict/warnings/5.010 to all modules
 - Fixed HTTP status code handling for POST/PUT/DELETE requests
