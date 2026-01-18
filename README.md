@@ -107,14 +107,6 @@ Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer i
 very good and provides the exact path of the item within the JSON in the lower left
 of the screen as you mouse over an element.
 
-# NAME
-
-WWW::Spotify - Spotify Web API Wrapper
-
-# VERSION
-
-version 0.013
-
 # CONSTRUCTOR ARGS
 
 ## ua

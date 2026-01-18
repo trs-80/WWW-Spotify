@@ -1,8 +1,12 @@
 package WWW::Spotify::Response;
 
+use 5.010;
+use strict;
+use warnings;
+
 # A lightweight wrapper around an individual Spotify Web API HTTP
 # response.  It stores the raw content as returned by LWP::UserAgent and
-# provides helpers for JSON decoding and JSON::Path extraction – logic
+# provides helpers for JSON decoding and JSON::Path extraction - logic
 # that previously lived in the monolithic WWW::Spotify module.
 
 use Moo;

@@ -1,5 +1,9 @@
 package WWW::Spotify;
 
+use 5.010;
+use strict;
+use warnings;
+
 use Moo 2.002004;
 
 # roles will be composed later in the file (after attribute declarations)

@@ -1,5 +1,9 @@
 package WWW::Spotify::Endpoint;
 
+use 5.010;
+use strict;
+use warnings;
+
 use Moo::Role;
 
 use JSON::MaybeXS     qw( encode_json );

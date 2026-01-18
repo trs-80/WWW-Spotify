@@ -1,5 +1,9 @@
 package WWW::Spotify::Client;
 
+use 5.010;
+use strict;
+use warnings;
+
 use Moo::Role;
 
 use MIME::Base64      qw( encode_base64 );
