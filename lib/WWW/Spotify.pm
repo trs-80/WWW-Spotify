@@ -1048,8 +1048,8 @@ sub create_playlist {
                 'name'        => $name,
                 'public'      => $public,
                 'description' => $description,
-                client_auth_required => 1
-            }
+            },
+            client_auth_required => 1
         }
     );
 }
@@ -1074,8 +1074,8 @@ sub add_items_to_playlist {
                 'playlist_id' => $playlist_id,
                 'uris'        => $uris,
                 'position'    => $position,
-                client_auth_required => 1
-            }
+            },
+            client_auth_required => 1
         }
     );
 }

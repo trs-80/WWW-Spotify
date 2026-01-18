@@ -3,7 +3,8 @@ package WWW::Spotify::Endpoint;
 use Moo::Role;
 
 use JSON::MaybeXS     qw( encode_json );
-use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT );
+use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT HTTP_CREATED HTTP_ACCEPTED );
+use URI::Escape       qw( uri_escape );
 
 #--------------------------------------------------------------------------
 # Generic HTTP verb helpers extracted from the main module.  They rely on
@@ -11,6 +12,18 @@ use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT );
 # WWW::Spotify (the consuming class), such as _mech(), uri_scheme(),
 # force_client_auth(), etc.
 #--------------------------------------------------------------------------
+
+# Helper to check if HTTP status code indicates success (2xx range)
+sub _is_success_status {
+    my ( $self, $status ) = @_;
+    return $status >= 200 && $status < 300;
+}
+
+# Helper to URI-encode a value for use in URL paths
+sub _uri_encode_param {
+    my ( $self, $value ) = @_;
+    return defined $value ? uri_escape($value) : '';
+}
 
 sub send_post_request {
     my $self       = shift;
@@ -22,7 +35,7 @@ sub send_post_request {
     my $path = $self->_method_to_uri->{ $attributes->{method} };
 
     if ($path) {
-        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
+        $path =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
         $url .= $path;
     }
 
@@ -59,11 +72,11 @@ sub send_post_request {
     }
 
     if (   $self->response_content_type() =~ /application\/json/i
-        && $self->response_status() != HTTP_OK )
+        && !$self->_is_success_status( $self->response_status() ) )
     {
         warn "content type is ", $self->response_content_type(), "\n"
           if $self->debug();
-        $self->last_error( "request failed, status("
+        $self->last_error( "POST request failed, status("
               . $self->response_status()
               . ") examine last_result for details" );
     }
@@ -85,7 +98,7 @@ sub send_delete_request {
     my $path = $self->_method_to_uri->{ $attributes->{method} };
 
     if ($path) {
-        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
+        $path =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
         $url .= $path;
     }
 
@@ -121,10 +134,10 @@ sub send_delete_request {
             $self->custom_request_handler()->($mech) );
     }
 
-    if ( $self->response_status() != HTTP_OK ) {
-        warn "Delete request failed with status ", $self->response_status(),
+    if ( !$self->_is_success_status( $self->response_status() ) ) {
+        warn "DELETE request failed with status ", $self->response_status(),
           "\n" if $self->debug();
-        $self->last_error( "Delete request failed, status("
+        $self->last_error( "DELETE request failed, status("
               . $self->response_status()
               . ") examine last_result for details" );
     }
@@ -146,7 +159,7 @@ sub send_put_request {
     my $path = $self->_method_to_uri->{ $attributes->{method} };
 
     if ($path) {
-        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
+        $path =~ s/\{([^}]+)\}/$self->_uri_encode_param($attributes->{params}{$1})/ge;
         $url .= $path;
     }
 
@@ -182,10 +195,10 @@ sub send_put_request {
             $self->custom_request_handler()->($mech) );
     }
 
-    if ( $self->response_status() != HTTP_NO_CONTENT ) {
-        warn "Put request failed with status ", $self->response_status(), "\n"
+    if ( !$self->_is_success_status( $self->response_status() ) ) {
+        warn "PUT request failed with status ", $self->response_status(), "\n"
           if $self->debug();
-        $self->last_error( "Put request failed, status("
+        $self->last_error( "PUT request failed, status("
               . $self->response_status()
               . ") examine last_result for details" );
     }
@@ -233,26 +246,33 @@ sub send_get_request {
             warn "raw: $path" if $self->debug();
 
             if ( $path =~ /search/ && $attributes->{method} eq 'search' ) {
-                $path =~ s/\{q\}/$attributes->{q}/;
-                $path =~ s/\{type\}/$attributes->{type}/;
+                my $q    = $self->_uri_encode_param( $attributes->{q} );
+                my $type = $self->_uri_encode_param( $attributes->{type} );
+                $path =~ s/\{q\}/$q/;
+                $path =~ s/\{type\}/$type/;
             }
             elsif ( $path =~ m/\{id\}/ && exists $attributes->{params}{id} ) {
-                $path =~ s/\{id\}/$attributes->{params}{id}/;
+                my $id = $self->_uri_encode_param( $attributes->{params}{id} );
+                $path =~ s/\{id\}/$id/;
             }
             elsif ( $path =~ m/\{ids\}/ && exists $attributes->{params}{ids} ) {
-                $path =~ s/\{ids\}/$attributes->{params}{ids}/;
+                my $ids = $self->_uri_encode_param( $attributes->{params}{ids} );
+                $path =~ s/\{ids\}/$ids/;
             }
 
             if ( $path =~ m/\{country\}/ ) {
-                $path =~ s/\{country\}/$attributes->{params}{country}/;
+                my $country = $self->_uri_encode_param( $attributes->{params}{country} );
+                $path =~ s/\{country\}/$country/;
             }
 
             if ( $path =~ m/\{user_id\}/ && exists $attributes->{params}{user_id} ) {
-                $path =~ s/\{user_id\}/$attributes->{params}{user_id}/;
+                my $user_id = $self->_uri_encode_param( $attributes->{params}{user_id} );
+                $path =~ s/\{user_id\}/$user_id/;
             }
 
             if ( $path =~ m/\{playlist_id\}/ && exists $attributes->{params}{playlist_id} ) {
-                $path =~ s/\{playlist_id\}/$attributes->{params}{playlist_id}/;
+                my $playlist_id = $self->_uri_encode_param( $attributes->{params}{playlist_id} );
+                $path =~ s/\{playlist_id\}/$playlist_id/;
             }
 
             warn "modified: $path\n" if $self->debug();
@@ -293,10 +313,10 @@ sub send_get_request {
     }
 
     if (   $self->response_content_type() =~ /application\/json/i
-        && $self->response_status() != HTTP_OK )
+        && !$self->_is_success_status( $self->response_status() ) )
     {
         warn "content type is " . $self->response_content_type() . "\n" if $self->debug();
-        $self->last_error( "request failed, status(" . $self->response_status() . ") examine last_result for details" );
+        $self->last_error( "GET request failed, status(" . $self->response_status() . ") examine last_result for details" );
     }
 
     die $self->last_error()
