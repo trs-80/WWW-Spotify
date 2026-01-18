@@ -1,6 +1,6 @@
 package WWW::Spotify;
 
-use 5.010;
+use 5.012;
 use strict;
 use warnings;
 

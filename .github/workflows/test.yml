@@ -54,7 +54,6 @@ jobs:
       fail-fast: true
       matrix:
         perl-version:
-          - '5.10'
           - '5.12'
           - '5.14'
           - '5.16'
@@ -96,7 +95,6 @@ jobs:
       fail-fast: true
       matrix:
         perl-version:
-          - '5.10'
           - '5.12'
           - '5.14'
           - '5.16'
