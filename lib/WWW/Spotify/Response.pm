@@ -1,5 +1,5 @@
 package WWW::Spotify::Response;
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 use 5.012;
 use strict;
 use warnings;

@@ -8,7 +8,7 @@ use Moo 2.002004;
 
 # roles will be composed later in the file (after attribute declarations)
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
