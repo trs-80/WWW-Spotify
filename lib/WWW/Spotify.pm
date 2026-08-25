@@ -7,7 +7,7 @@ our $VERSION = '0.013';
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
 use JSON::Path        ();
-use JSON::MaybeXS     qw( decode_json );
+use JSON::MaybeXS     qw( decode_json encode_json );
 use MIME::Base64      qw( encode_base64 );
 use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
 use HTTP::Status      qw( HTTP_OK HTTP_NO_CONTENT );
@@ -551,12 +551,14 @@ foreach my $key ( keys %api_call_options ) {
     $method_to_uri{ $api_call_options{$key}->{method} } = $key;
 }
 
-sub send_post_request {
-    my $self       = shift;
-    my $attributes = shift;
-
-    # reset last error
-    $self->last_error(q{});
+# _build_url: construct the request URL from an attributes hashref.
+#
+# For send_get_request the URL-building logic is richer (query_full_url
+# passthrough, search substitution, extras appended as query params).  That
+# full logic stays in send_get_request.  _build_url handles the simpler
+# pattern shared by POST / PUT / DELETE.
+sub _build_url {
+    my ( $self, $attributes ) = @_;
 
     my $url  = $self->uri_scheme() . '://' . $self->uri_hostname();
     my $path = $method_to_uri{ $attributes->{method} };
@@ -567,6 +569,18 @@ sub send_post_request {
     }
 
     warn "$url\n" if $self->debug;
+    return $url;
+}
+
+# _send_request: shared machinery for every HTTP verb.
+#
+# Parameters:
+#   $verb        - 'get' | 'post' | 'put' | 'delete'
+#   $url         - fully-formed request URL
+#   $attributes  - original attributes hashref (used for auth flag)
+#   $body        - optional request body (undef for GET)
+sub _send_request {
+    my ( $self, $verb, $url, $attributes, $body ) = @_;
 
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
@@ -582,10 +596,13 @@ sub send_post_request {
             'Authorization' => 'Bearer ' . $self->current_access_token() );
     }
 
-    my $content =
-      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
-    $mech->add_header( 'Content-Type' => 'application/json' );
-    $mech->post( $url, Content => $content );
+    if ( defined $body ) {
+        $mech->add_header( 'Content-Type' => 'application/json' );
+        $mech->$verb( $url, Content => $body );
+    }
+    else {
+        $mech->$verb($url);
+    }
 
     if ( $self->grab_response_header() == 1 ) {
         $self->_set_response_headers($mech);
@@ -598,6 +615,18 @@ sub send_post_request {
         $self->_set_custom_request_handler_result(
             $self->custom_request_handler()->($mech) );
     }
+
+    return $mech;
+}
+
+sub send_post_request {
+    my ( $self, $attributes ) = @_;
+
+    $self->last_error(q{});
+
+    my $url  = $self->_build_url($attributes);
+    my $body = $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    my $mech = $self->_send_request( 'post', $url, $attributes, $body );
 
     if (   $self->response_content_type() =~ /application\/json/i
         && $self->response_status() != HTTP_OK )
@@ -618,54 +647,15 @@ sub send_post_request {
 }
 
 sub send_delete_request {
-    my $self       = shift;
-    my $attributes = shift;
 
     # Internal method used to send DELETE requests to the Spotify API.
+    my ( $self, $attributes ) = @_;
 
-    # reset last error
     $self->last_error(q{});
 
-    my $url  = $self->uri_scheme() . '://' . $self->uri_hostname();
-    my $path = $method_to_uri{ $attributes->{method} };
-
-    if ($path) {
-        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
-        $url .= $path;
-    }
-
-    warn "$url\n" if $self->debug;
-
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = $self->_mech;
-
-    if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
-        if ( $self->current_access_token() eq q{} ) {
-            warn "Needed to get access token\n" if $self->debug();
-            $self->get_client_credentials();
-        }
-        $mech->add_header(
-            'Authorization' => 'Bearer ' . $self->current_access_token() );
-    }
-
-    my $content =
-      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
-    $mech->add_header( 'Content-Type' => 'application/json' );
-    $mech->delete( $url, Content => $content );
-
-    if ( $self->grab_response_header() == 1 ) {
-        $self->_set_response_headers($mech);
-    }
-
-    $self->response_status( $mech->status() );
-    $self->response_content_type( $mech->content_type() );
-
-    if ( $self->_has_custom_request_handler() ) {
-        $self->_set_custom_request_handler_result(
-            $self->custom_request_handler()->($mech) );
-    }
+    my $url  = $self->_build_url($attributes);
+    my $body = $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    my $mech = $self->_send_request( 'delete', $url, $attributes, $body );
 
     if ( $self->response_status() != HTTP_OK ) {
         warn "Delete request failed with status ", $self->response_status(),
@@ -685,54 +675,15 @@ sub send_delete_request {
 }
 
 sub send_put_request {
-    my $self       = shift;
-    my $attributes = shift;
 
     # Internal method used to send PUT requests to the Spotify API.
+    my ( $self, $attributes ) = @_;
 
-    # reset last error
     $self->last_error(q{});
 
-    my $url  = $self->uri_scheme() . '://' . $self->uri_hostname();
-    my $path = $method_to_uri{ $attributes->{method} };
-
-    if ($path) {
-        $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g;
-        $url .= $path;
-    }
-
-    warn "$url\n" if $self->debug;
-
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = $self->_mech;
-
-    if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
-        if ( $self->current_access_token() eq q{} ) {
-            warn "Needed to get access token\n" if $self->debug();
-            $self->get_client_credentials();
-        }
-        $mech->add_header(
-            'Authorization' => 'Bearer ' . $self->current_access_token() );
-    }
-
-    my $content =
-      $attributes->{params} ? encode_json( $attributes->{params} ) : '';
-    $mech->add_header( 'Content-Type' => 'application/json' );
-    $mech->put( $url, Content => $content );
-
-    if ( $self->grab_response_header() == 1 ) {
-        $self->_set_response_headers($mech);
-    }
-
-    $self->response_status( $mech->status() );
-    $self->response_content_type( $mech->content_type() );
-
-    if ( $self->_has_custom_request_handler() ) {
-        $self->_set_custom_request_handler_result(
-            $self->custom_request_handler()->($mech) );
-    }
+    my $url  = $self->_build_url($attributes);
+    my $body = $attributes->{params} ? encode_json( $attributes->{params} ) : '';
+    my $mech = $self->_send_request( 'put', $url, $attributes, $body );
 
     if ( $self->response_status() != HTTP_NO_CONTENT ) {
         warn "Put request failed with status ", $self->response_status(), "\n"
@@ -753,9 +704,7 @@ sub send_put_request {
 sub send_get_request {
 
     # need to build the URL here
-    my $self = shift;
-
-    my $attributes = shift;
+    my ( $self, $attributes ) = @_;
 
     my $uri_params = q{};
 
@@ -780,20 +729,12 @@ sub send_get_request {
         delete $attributes->{format};
     }
 
-    # my $url = $self->build_url_base($call_type);
     my $url;
     if ( $attributes->{method} eq 'query_full_url' ) {
         $url = $attributes->{url};
     }
     else {
-
-        $url = $self->uri_scheme();
-
-        # the ://
-        $url .= '://';
-
-        # the domain
-        $url .= $self->uri_hostname();
+        $url = $self->uri_scheme() . '://' . $self->uri_hostname();
 
         my $path = $method_to_uri{ $attributes->{method} };
         if ($path) {
@@ -833,51 +774,20 @@ sub send_get_request {
         $url .= $path;
     }
 
-    # now we need to address the "extra" attributes if any
+    # append "extras" as query params if present
     if ($uri_params) {
-        my $start_with = '?';
-        if ( $url =~ /\?/ ) {
-            $start_with = '&';
-        }
+        my $start_with = $url =~ /\?/ ? '&' : '?';
         $url .= $start_with . $uri_params;
     }
 
     warn "$url\n" if $self->debug;
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = $self->_mech;
 
-    if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
-
-        if ( $self->current_access_token() eq q{} ) {
-            warn "Needed to get access token\n" if $self->debug();
-            $self->get_client_credentials();
-        }
-        $mech->add_header(
-            'Authorization' => 'Bearer ' . $self->current_access_token() );
-    }
-
-    $mech->get($url);
-
-    if ( $self->grab_response_header() == 1 ) {
-        $self->_set_response_headers($mech);
-    }
-
-    $self->response_status( $mech->status() );
-    $self->response_content_type( $mech->content_type() );
-
-    if ( $self->_has_custom_request_handler() ) {
-        $self->_set_custom_request_handler_result(
-            $self->custom_request_handler()->($mech) );
-    }
+    my $mech = $self->_send_request( 'get', $url, $attributes, undef );
 
     # the original code did not provide adequate built in validation
     # of the response for an API call.
     # Adding a new method (die_on_response_error) with a default of 0 to avoid
-    # breaking/changing
-    # existing code using older versions of this module.
-    # verify the status and content_type of the response
+    # breaking/changing existing code using older versions of this module.
     if (   $self->response_content_type() =~ /application\/json/i
         && $self->response_status() != HTTP_OK )
     {
@@ -894,7 +804,6 @@ sub send_get_request {
 
     return $self->format_results( $mech->content, $mech->ct(),
         $mech->status() );
-
 }
 
 sub _set_response_headers {
