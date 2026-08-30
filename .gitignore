@@ -3,3 +3,10 @@
 *.sw*
 .tidyall.d
 WWW-Spotify*
+/Makefile
+/MYMETA.json
+/MYMETA.yml
+/blib/
+/pm_to_blib
+/cover_db/
+/.serena/
