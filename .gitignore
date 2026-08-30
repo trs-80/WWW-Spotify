@@ -4,9 +4,13 @@
 .tidyall.d
 WWW-Spotify*
 /Makefile
+/Makefile.old
 /MYMETA.json
 /MYMETA.yml
 /blib/
 /pm_to_blib
 /cover_db/
 /.serena/
+/.vscode/
+/docs/superpowers/
+.DS_Store
