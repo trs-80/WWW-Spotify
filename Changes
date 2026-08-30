@@ -1,4 +1,6 @@
 {{$NEXT}}
+- Raise minimum perl to 5.24, matching what CI can actually test
+  (the cpm dependency installer requires it)
 
 0.015     2026-08-30 02:00:23Z
 

@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use 5.012;
+use 5.024;
 
 use ExtUtils::MakeMaker;
 
@@ -14,7 +14,7 @@ my %WriteMakefileArgs = (
   },
   "DISTNAME" => "WWW-Spotify",
   "LICENSE" => "perl",
-  "MIN_PERL_VERSION" => "5.012",
+  "MIN_PERL_VERSION" => "5.024",
   "NAME" => "WWW::Spotify",
   "PREREQ_PM" => {
     "Carp" => 0,
