@@ -1,3 +1,5 @@
+{{$NEXT}}
+
 0.016     2026-08-30 02:30:39Z
 - Fix t/01 failing without SPOTIFY_CLIENT_ID: its live requests now sit
   behind a credential SKIP gate again, so installs and smokers no
