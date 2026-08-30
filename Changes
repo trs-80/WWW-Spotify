@@ -1,4 +1,7 @@
 {{$NEXT}}
+- Fix t/01 failing without SPOTIFY_CLIENT_ID: its live requests now sit
+  behind a credential SKIP gate again, so installs and smokers no
+  longer fail the test suite (broken in 0.015)
 - Raise minimum perl to 5.24, matching what CI can actually test
   (the cpm dependency installer requires it)
 
