@@ -872,7 +872,7 @@ sub send_get_request {
         my @tmp = ();
 
         foreach my $key ( keys %{ $attributes->{extras} } ) {
-            push @tmp, "$key=$attributes->{extras}{$key}";
+            push @tmp, "$key=" . uri_escape( $attributes->{extras}{$key} );
         }
         $uri_params = join( '&', @tmp );
     }
@@ -896,8 +896,8 @@ sub send_get_request {
             warn "raw: $path" if $self->debug();
 
             if ( $path =~ /search/ && $attributes->{method} eq 'search' ) {
-                $path =~ s/\{q\}/$attributes->{q}/;
-                $path =~ s/\{type\}/$attributes->{type}/;
+                $path =~ s/\{q\}/uri_escape( $attributes->{q} )/e;
+                $path =~ s/\{type\}/uri_escape( $attributes->{type} )/e;
             }
 
             # Generic substitution for all remaining {placeholder} tokens
