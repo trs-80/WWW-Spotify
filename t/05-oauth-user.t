@@ -69,8 +69,8 @@ package main;
         qr{^https://accounts\.spotify\.com/authorize\?},
         'authorize_url starts with the accounts authorize endpoint'
     );
-    like( $url, qr{client_id=CLIENT123},     'client_id present' );
-    like( $url, qr{response_type=code},      'response_type=code present' );
+    like( $url, qr{client_id=CLIENT123}, 'client_id present' );
+    like( $url, qr{response_type=code},  'response_type=code present' );
     like(
         $url,
         qr{redirect_uri=http%3A%2F%2F127\.0\.0\.1%3A8888%2Fcallback},
@@ -132,8 +132,10 @@ package main;
         'authorization_code',
         'grant_type is authorization_code'
     );
-    is( $mock->{last_params}{code}, 'AUTHCODE99',
-        'the real code is posted, not a literal string' );
+    is(
+        $mock->{last_params}{code}, 'AUTHCODE99',
+        'the real code is posted, not a literal string'
+    );
     is(
         $mock->{last_params}{redirect_uri},
         'http://127.0.0.1:8888/callback',
@@ -145,12 +147,14 @@ package main;
         'Basic auth header set on a single line'
     );
 
-    is( $s->current_access_token(), 'user_access_tok',
-        'access token stored' );
+    is(
+        $s->current_access_token(), 'user_access_tok',
+        'access token stored'
+    );
     is( $s->refresh_token(), 'refresh_tok', 'refresh token stored' );
     ok(
-        $s->token_expires_at() >= $before + 3600
-          && $s->token_expires_at() <= $after + 3600,
+               $s->token_expires_at() >= $before + 3600
+            && $s->token_expires_at() <= $after + 3600,
         'token_expires_at set from expires_in'
     );
     ok( $result, 'get_access_token returns true on success' );
@@ -199,15 +203,23 @@ package main;
         'https://accounts.spotify.com/api/token',
         'refresh_access_token posts to the token endpoint'
     );
-    is( $mock->{last_params}{grant_type}, 'refresh_token',
-        'grant_type is refresh_token' );
-    is( $mock->{last_params}{refresh_token},
-        'refresh_tok', 'stored refresh token is posted' );
+    is(
+        $mock->{last_params}{grant_type}, 'refresh_token',
+        'grant_type is refresh_token'
+    );
+    is(
+        $mock->{last_params}{refresh_token},
+        'refresh_tok', 'stored refresh token is posted'
+    );
 
-    is( $s->current_access_token(), 'refreshed_tok',
-        'access token replaced' );
-    is( $s->refresh_token(), 'refresh_tok',
-        'refresh token kept when response omits a new one' );
+    is(
+        $s->current_access_token(), 'refreshed_tok',
+        'access token replaced'
+    );
+    is(
+        $s->refresh_token(), 'refresh_tok',
+        'refresh token kept when response omits a new one'
+    );
     ok( $result, 'refresh_access_token returns true on success' );
 }
 
@@ -229,8 +241,10 @@ package main;
     );
 
     $s->refresh_access_token();
-    is( $s->refresh_token(), 'rotated_refresh',
-        'rotated refresh token replaces the stored one' );
+    is(
+        $s->refresh_token(), 'rotated_refresh',
+        'rotated refresh token replaces the stored one'
+    );
 }
 
 {

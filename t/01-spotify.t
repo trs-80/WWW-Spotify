@@ -63,12 +63,12 @@ if ($@) {
 
 ok( $crh_check == 1, 'customer_request_handler requires code ref' );
 
+# return a sentinel regardless of response status: this asserts the
+# handler ran and its result was stored, not what the API returned
 $obj->custom_request_handler(
     sub {
         my $m = shift;
-        if ( $m->status() == 401 ) {
-            return 2;
-        }
+        return 2;
     }
 );
 

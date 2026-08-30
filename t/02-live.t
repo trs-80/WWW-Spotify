@@ -15,8 +15,8 @@ SKIP: {
     skip 'No SPOTIFY_CLIENT_ID', 9 unless $ENV{SPOTIFY_CLIENT_ID};
 
     my $obj = WWW::Spotify->new();
-    $obj->oauth_client_id($ENV{SPOTIFY_CLIENT_ID});
-    $obj->oauth_client_secret($ENV{SPOTIFY_CLIENT_SECRET});
+    $obj->oauth_client_id( $ENV{SPOTIFY_CLIENT_ID} );
+    $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} );
     $obj->get_client_credentials();
 
     sub show_and_pause {
@@ -31,8 +31,10 @@ SKIP: {
 
     ok( $obj->oauth_client_id( $ENV{SPOTIFY_CLIENT_ID} ), 'set client id' );
 
-    ok( $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ),
-        'set client secret' );
+    ok(
+        $obj->oauth_client_secret( $ENV{SPOTIFY_CLIENT_SECRET} ),
+        'set client secret'
+    );
 
     ok( $obj->get_client_credentials(), 'get client credentials' );
 
@@ -57,8 +59,10 @@ SKIP: {
     ok( $result =~ /name/, 'track endpoint works' );
 
     # GET /v1/search — search, works with client credentials
-    $result =
-      $obj->search( 'tania bowra', 'artist', { limit => 10, offset => 0 } );
+    $result = $obj->search(
+        'tania bowra', 'artist',
+        { limit => 10, offset => 0 }
+    );
     ok( $result =~ /artists/, 'search endpoint works' );
 }
 

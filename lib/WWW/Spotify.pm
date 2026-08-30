@@ -445,7 +445,9 @@ my @api_call_options = (
         info   => 'Get Recommendations',
         type   => 'GET',
         method => 'get_recommendations',
-        params => [ 'seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market' ]
+        params => [
+            'seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market'
+        ]
     },
 
     {
@@ -623,28 +625,43 @@ my @api_call_options = (
 # methods are kept for backwards compatibility; calling one warns once
 # per process and the request is still sent (Spotify will reject it).
 my %method_deprecated = (
-    albums  => 'GET /v1/albums?ids= removed Feb 2026; fetch albums individually with album()',
-    artists => 'GET /v1/artists?ids= removed Feb 2026; fetch artists individually with artist()',
-    tracks  => 'GET /v1/tracks?ids= removed Feb 2026; fetch tracks individually with track()',
-    get_several_shows      => 'GET /v1/shows removed Feb 2026; use get_show() per id',
-    get_several_audiobooks => 'GET /v1/audiobooks removed Feb 2026; use get_audiobook() per id',
-    get_several_chapters   => 'GET /v1/chapters removed Feb 2026; use get_chapter() per id',
-    get_several_tracks_audio_features => 'GET /v1/audio-features removed Feb 2026',
-    get_track_audio_features => 'GET /v1/audio-features/{id} deprecated by Spotify (Nov 2024)',
-    get_track_audio_analysis => 'GET /v1/audio-analysis/{id} deprecated by Spotify (Nov 2024)',
-    get_recommendations       => 'GET /v1/recommendations deprecated by Spotify (Nov 2024)',
-    get_available_genre_seeds => 'GET /v1/recommendations/available-genre-seeds removed',
-    browse_featured_playlists => 'GET /v1/browse/featured-playlists removed by Spotify (Nov 2024)',
-    browse_new_releases       => 'GET /v1/browse/new-releases removed Feb 2026',
-    get_categories            => 'GET /v1/browse/categories removed Feb 2026',
-    get_category              => 'GET /v1/browse/categories/{id} removed Feb 2026',
-    artist_top_tracks         => 'GET /v1/artists/{id}/top-tracks removed Feb 2026',
-    artist_related_artists => 'GET /v1/artists/{id}/related-artists removed by Spotify (Nov 2024)',
-    user                   => 'GET /v1/users/{user_id} deprecated/removed Feb 2026',
-    remove_user_saved_tracks => 'DELETE /v1/me/tracks removed Feb 2026; use remove_library_items()',
+    albums =>
+        'GET /v1/albums?ids= removed Feb 2026; fetch albums individually with album()',
+    artists =>
+        'GET /v1/artists?ids= removed Feb 2026; fetch artists individually with artist()',
+    tracks =>
+        'GET /v1/tracks?ids= removed Feb 2026; fetch tracks individually with track()',
+    get_several_shows =>
+        'GET /v1/shows removed Feb 2026; use get_show() per id',
+    get_several_audiobooks =>
+        'GET /v1/audiobooks removed Feb 2026; use get_audiobook() per id',
+    get_several_chapters =>
+        'GET /v1/chapters removed Feb 2026; use get_chapter() per id',
+    get_several_tracks_audio_features =>
+        'GET /v1/audio-features removed Feb 2026',
+    get_track_audio_features =>
+        'GET /v1/audio-features/{id} deprecated by Spotify (Nov 2024)',
+    get_track_audio_analysis =>
+        'GET /v1/audio-analysis/{id} deprecated by Spotify (Nov 2024)',
+    get_recommendations =>
+        'GET /v1/recommendations deprecated by Spotify (Nov 2024)',
+    get_available_genre_seeds =>
+        'GET /v1/recommendations/available-genre-seeds removed',
+    browse_featured_playlists =>
+        'GET /v1/browse/featured-playlists removed by Spotify (Nov 2024)',
+    browse_new_releases => 'GET /v1/browse/new-releases removed Feb 2026',
+    get_categories      => 'GET /v1/browse/categories removed Feb 2026',
+    get_category        => 'GET /v1/browse/categories/{id} removed Feb 2026',
+    artist_top_tracks   => 'GET /v1/artists/{id}/top-tracks removed Feb 2026',
+    artist_related_artists =>
+        'GET /v1/artists/{id}/related-artists removed by Spotify (Nov 2024)',
+    user => 'GET /v1/users/{user_id} deprecated/removed Feb 2026',
+    remove_user_saved_tracks =>
+        'DELETE /v1/me/tracks removed Feb 2026; use remove_library_items()',
     check_users_saved_tracks =>
         'GET /v1/me/tracks/contains removed Feb 2026; use check_library_items()',
-    save_shows_for_current_user => 'PUT /v1/me/shows removed Feb 2026; use save_library_items()',
+    save_shows_for_current_user =>
+        'PUT /v1/me/shows removed Feb 2026; use save_library_items()',
     check_users_saved_shows =>
         'GET /v1/me/shows/contains removed Feb 2026; use check_library_items()',
     save_audiobooks_for_current_user =>
@@ -653,7 +670,8 @@ my %method_deprecated = (
         'DELETE /v1/me/audiobooks removed Feb 2026; use remove_library_items()',
     check_users_saved_audiobooks =>
         'GET /v1/me/audiobooks/contains removed Feb 2026; use check_library_items()',
-    follow_artists_or_users => 'PUT /v1/me/following removed Feb 2026; use save_library_items()',
+    follow_artists_or_users =>
+        'PUT /v1/me/following removed Feb 2026; use save_library_items()',
     unfollow_artists_or_users =>
         'DELETE /v1/me/following removed Feb 2026; use remove_library_items()',
     check_if_user_follows_artists_or_users =>
@@ -688,7 +706,8 @@ sub _build_url {
     my %unused = %{ $attributes->{params} || {} };
 
     if ($path) {
-        $path =~ s/\{([^}]+)\}/my $v = delete $unused{$1}; defined $v ? $v : q{}/ge;
+        $path
+            =~ s/\{([^}]+)\}/my $v = delete $unused{$1}; defined $v ? $v : q{}/ge;
         $url .= $path;
     }
 
@@ -708,19 +727,18 @@ sub _send_request {
 
     my $method = $attributes->{method} // q{};
     if ( my $reason = $method_deprecated{$method} ) {
-        carp "WWW::Spotify: $method() targets a removed/deprecated Spotify endpoint: $reason"
-          unless $deprecation_warned{$method}++;
+        carp
+            "WWW::Spotify: $method() targets a removed/deprecated Spotify endpoint: $reason"
+            unless $deprecation_warned{$method}++;
     }
 
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 )
-    {
-        if (   $self->current_access_token() eq q{}
-            || time() >= $self->token_expires_at() )
-        {
+        || $self->force_client_auth() != 0 ) {
+        if ( $self->current_access_token() eq q{}
+            || time() >= $self->token_expires_at() ) {
             warn "Needed to get access token\n" if $self->debug();
             $self->current_access_token(q{});
             $self->get_client_credentials();
@@ -762,21 +780,22 @@ sub send_post_request {
     my $mech = $self->_send_request( 'post', $url, $attributes, $body );
 
     if (   $self->response_content_type() =~ /application\/json/i
-        && $self->response_status() != HTTP_OK )
-    {
+        && $self->response_status() != HTTP_OK ) {
         warn "content type is ", $self->response_content_type(), "\n"
-          if $self->debug();
+            if $self->debug();
         $self->last_error( "request failed, status("
-              . $self->response_status()
-              . ") examine last_result for details" );
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
-    return $self->format_results( $mech->content, $mech->ct(),
-        $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub send_delete_request {
@@ -792,19 +811,21 @@ sub send_delete_request {
 
     if ( !is_success( $self->response_status() ) ) {
         warn "Delete request failed with status ", $self->response_status(),
-          "\n"
-          if $self->debug();
+            "\n"
+            if $self->debug();
         $self->last_error( "Delete request failed, status("
-              . $self->response_status()
-              . ") examine last_result for details" );
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
-    return $self->format_results( $mech->content, $mech->ct(),
-        $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub send_put_request {
@@ -820,18 +841,20 @@ sub send_put_request {
 
     if ( !is_success( $self->response_status() ) ) {
         warn "Put request failed with status ", $self->response_status(), "\n"
-          if $self->debug();
+            if $self->debug();
         $self->last_error( "Put request failed, status("
-              . $self->response_status()
-              . ") examine last_result for details" );
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
-    return $self->format_results( $mech->content, $mech->ct(),
-        $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub send_get_request {
@@ -845,8 +868,7 @@ sub send_get_request {
     $self->last_error(q{});
 
     if ( defined $attributes->{extras}
-        and ref $attributes->{extras} eq 'HASH' )
-    {
+        and ref $attributes->{extras} eq 'HASH' ) {
         my @tmp = ();
 
         foreach my $key ( keys %{ $attributes->{extras} } ) {
@@ -856,8 +878,7 @@ sub send_get_request {
     }
 
     if ( exists $attributes->{format}
-        && $attributes->{format} =~ /json|jsonp/ )
-    {
+        && $attributes->{format} =~ /json|jsonp/ ) {
         $self->result_format( $attributes->{format} );
         delete $attributes->{format};
     }
@@ -881,7 +902,7 @@ sub send_get_request {
 
             # Generic substitution for all remaining {placeholder} tokens
             $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g
-              if $attributes->{params};
+                if $attributes->{params};
 
             warn "modified: $path\n" if $self->debug();
         }
@@ -904,21 +925,22 @@ sub send_get_request {
     # Adding a new method (die_on_response_error) with a default of 0 to avoid
     # breaking/changing existing code using older versions of this module.
     if (   $self->response_content_type() =~ /application\/json/i
-        && $self->response_status() != HTTP_OK )
-    {
+        && $self->response_status() != HTTP_OK ) {
         warn "content type is ", $self->response_content_type(), "\n"
-          if $self->debug();
+            if $self->debug();
         $self->last_error( "request failed, status("
-              . $self->response_status()
-              . ") examine last_result for details" );
+                . $self->response_status()
+                . ") examine last_result for details" );
     }
 
     if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
-    return $self->format_results( $mech->content, $mech->ct(),
-        $mech->status() );
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub _set_response_headers {
@@ -966,8 +988,8 @@ sub get_oauth_authorize {
 
     my $grant_type = 'authorization_code';
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $client_and_secret
+        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
     chomp($encoded);
     $encoded =~ s/\n//g;
@@ -1000,8 +1022,8 @@ sub get_client_credentials {
     my $grant_type = 'client_credentials';
     local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
-    my $client_and_secret =
-      $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $client_and_secret
+        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
     my $url     = $self->oauth_token_url();
 
@@ -1011,8 +1033,8 @@ sub get_client_credentials {
     my $extra = {
         grant_type => $grant_type
 
-          #code => 'code',
-          #redirect_uri => $self->oauth_redirect_uri
+            #code => 'code',
+            #redirect_uri => $self->oauth_redirect_uri
     };
     if ($scope) {
         $extra->{scope} = $scope;
@@ -1070,9 +1092,9 @@ sub _request_token {
 
     $self->current_access_token( $result->{access_token} );
     $self->token_expires_at( time() + $result->{expires_in} )
-      if $result->{expires_in};
+        if $result->{expires_in};
     $self->refresh_token( $result->{refresh_token} )
-      if $result->{refresh_token};
+        if $result->{refresh_token};
 
     return 1;
 }
@@ -1081,7 +1103,7 @@ sub get_access_token {
     my ( $self, $code ) = @_;
 
     die "get_access_token requires an authorization code\n"
-      unless defined $code && length $code;
+        unless defined $code && length $code;
 
     return $self->_request_token(
         {
@@ -1096,7 +1118,7 @@ sub refresh_access_token {
     my $self = shift;
 
     die "refresh_access_token requires a stored refresh token\n"
-      unless $self->refresh_token();
+        unless $self->refresh_token();
 
     return $self->_request_token(
         {
@@ -1117,9 +1139,9 @@ sub get {
     # on dependencies.  However I would not have been
     # able to do this in so few lines without it
 
-# Making a generalization here
-# if you use a * you are looking for an array
-# if you don't have an * you want the first 1 (or should I say you get the first 1)
+    # Making a generalization here
+    # if you use a * you are looking for an array
+    # if you don't have an * you want the first 1 (or should I say you get the first 1)
 
     my ( $self, @return ) = @_;
 
@@ -1204,8 +1226,8 @@ sub album {
 
     return $self->send_get_request(
         {
-            method => 'album',
-            params => { 'id' => $id },
+            method               => 'album',
+            params               => { 'id' => $id },
             client_auth_required => 1
         }
     );
@@ -1221,8 +1243,8 @@ sub albums {
 
     return $self->send_get_request(
         {
-            method => 'albums',
-            params => { 'ids' => $ids },
+            method               => 'albums',
+            params               => { 'ids' => $ids },
             client_auth_required => 1
         }
     );
@@ -1241,9 +1263,9 @@ sub albums_tracks {
 
     return $self->send_get_request(
         {
-            method => 'albums_tracks',
-            params => { 'id' => $album_id },
-            extras => $extras,
+            method               => 'albums_tracks',
+            params               => { 'id' => $album_id },
+            extras               => $extras,
             client_auth_required => 1
         }
     );
@@ -1256,8 +1278,8 @@ sub artist {
 
     return $self->send_get_request(
         {
-            method => 'artist',
-            params => { 'id' => $id },
+            method               => 'artist',
+            params               => { 'id' => $id },
             client_auth_required => 1
         }
     );
@@ -1274,8 +1296,8 @@ sub artists {
 
     return $self->send_get_request(
         {
-            method => 'artists',
-            params => { 'ids' => $artists },
+            method               => 'artists',
+            params               => { 'ids' => $artists },
             client_auth_required => 1
         }
     );
@@ -1289,9 +1311,9 @@ sub artist_albums {
 
     return $self->send_get_request(
         {
-            method => 'artist_albums',
-            params => { 'id' => $artist_id },
-            extras => $extras,
+            method               => 'artist_albums',
+            params               => { 'id' => $artist_id },
+            extras               => $extras,
             client_auth_required => 1
         }
     );
@@ -1307,8 +1329,8 @@ sub artist_top_tracks {
         {
             method => 'artist_top_tracks',
             params => {
-                'id'      => $artist_id,
-                'country' => $country,
+                'id'                 => $artist_id,
+                'country'            => $country,
                 client_auth_required => 1
             }
         }
@@ -1466,8 +1488,8 @@ sub get_playlist {
     my ( $self, $playlist_id ) = @_;
     return $self->send_get_request(
         {
-            method => 'get_playlist',
-            params => { 'playlist_id' => $playlist_id },
+            method               => 'get_playlist',
+            params               => { 'playlist_id' => $playlist_id },
             client_auth_required => 1
         }
     );
@@ -1477,10 +1499,10 @@ sub get_playlist_items {
     my ( $self, $playlist_id, $extras ) = @_;
     return $self->send_get_request(
         {
-            method => 'get_playlist_items',
-            params => { 'playlist_id' => $playlist_id },
+            method               => 'get_playlist_items',
+            params               => { 'playlist_id' => $playlist_id },
             client_auth_required => 1,
-            extras => $extras
+            extras               => $extras
         }
     );
 }
@@ -1505,9 +1527,9 @@ sub get_current_user_playlists {
     my ( $self, $extras ) = @_;
     return $self->send_get_request(
         {
-            method => 'get_current_user_playlists',
+            method               => 'get_current_user_playlists',
             client_auth_required => 1,
-            extras => $extras
+            extras               => $extras
         }
     );
 }
@@ -1643,7 +1665,7 @@ sub follow_artists_or_users {
     my ( $self, $type, $ids ) = @_;
 
     die "Type must be 'artist' or 'user'"
-      unless $type eq 'artist' or $type eq 'user';
+        unless $type eq 'artist' or $type eq 'user';
 
     my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
 
@@ -1663,7 +1685,7 @@ sub unfollow_artists_or_users {
     my ( $self, $type, $ids ) = @_;
 
     die "Type must be 'artist' or 'user'"
-      unless $type eq 'artist' or $type eq 'user';
+        unless $type eq 'artist' or $type eq 'user';
 
     my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
 
@@ -1683,7 +1705,7 @@ sub check_if_user_follows_artists_or_users {
     my ( $self, $type, $ids ) = @_;
 
     die "Type must be 'artist' or 'user'"
-      unless $type eq 'artist' or $type eq 'user';
+        unless $type eq 'artist' or $type eq 'user';
 
     my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
 
@@ -1823,171 +1845,170 @@ sub get_audiobook_chapters {
 }
 
 sub get_users_saved_audiobooks {
-    my ($self, $limit, $offset) = @_;
-    
+    my ( $self, $limit, $offset ) = @_;
+
     my $params = {};
-    $params->{limit} = $limit if $limit;
+    $params->{limit}  = $limit  if $limit;
     $params->{offset} = $offset if defined $offset;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_users_saved_audiobooks',
-            params => $params,
+            method               => 'get_users_saved_audiobooks',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub save_audiobooks_for_current_user {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Audiobook IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_put_request(
         {
-            method => 'save_audiobooks_for_current_user',
-            params => { ids => $id_list },
+            method               => 'save_audiobooks_for_current_user',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
-
 sub remove_users_saved_audiobooks {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Audiobook IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_delete_request(
         {
-            method => 'remove_users_saved_audiobooks',
-            params => { ids => $id_list },
+            method               => 'remove_users_saved_audiobooks',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub check_users_saved_audiobooks {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Audiobook IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_get_request(
         {
-            method => 'check_users_saved_audiobooks',
-            params => { ids => $id_list },
+            method               => 'check_users_saved_audiobooks',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub get_users_saved_shows {
-    my ($self, %params) = @_;
-    
+    my ( $self, %params ) = @_;
+
     return $self->send_get_request(
         {
-            method => 'get_users_saved_shows',
-            params => \%params,
+            method               => 'get_users_saved_shows',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub save_shows_for_current_user {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Show IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_put_request(
         {
-            method => 'save_shows_for_current_user',
-            params => { ids => $id_list },
+            method               => 'save_shows_for_current_user',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub check_users_saved_shows {
-    my ($self, $ids) = @_;
-    
+    my ( $self, $ids ) = @_;
+
     die "Show IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     return $self->send_get_request(
         {
-            method => 'check_users_saved_shows',
-            params => { ids => $id_list },
+            method               => 'check_users_saved_shows',
+            params               => { ids => $id_list },
             client_auth_required => 1
         }
     );
 }
 
 sub get_categories {
-    my ($self, %params) = @_;
-    
+    my ( $self, %params ) = @_;
+
     return $self->send_get_request(
         {
-            method => 'get_categories',
-            params => \%params,
+            method               => 'get_categories',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_category {
-    my ($self, $category_id, %params) = @_;
-    
+    my ( $self, $category_id, %params ) = @_;
+
     die "Category ID is required" unless $category_id;
-    
+
     $params{category_id} = $category_id;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_category',
-            params => \%params,
+            method               => 'get_category',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_chapter {
-    my ($self, $id, %params) = @_;
-    
+    my ( $self, $id, %params ) = @_;
+
     die "Chapter ID is required" unless $id;
-    
+
     $params{id} = $id;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_chapter',
-            params => \%params,
+            method               => 'get_chapter',
+            params               => \%params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_several_chapters {
-    my ($self, $ids, %params) = @_;
-    
+    my ( $self, $ids, %params ) = @_;
+
     die "Chapter IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     $params{ids} = $id_list;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_several_chapters',
-            params => \%params,
+            method               => 'get_several_chapters',
+            params               => \%params,
             client_auth_required => 1
         }
     );
@@ -1995,10 +2016,10 @@ sub get_several_chapters {
 
 sub get_available_genre_seeds {
     my ($self) = @_;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_available_genre_seeds',
+            method               => 'get_available_genre_seeds',
             client_auth_required => 1
         }
     );
@@ -2006,62 +2027,62 @@ sub get_available_genre_seeds {
 
 sub get_available_markets {
     my ($self) = @_;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_available_markets',
+            method               => 'get_available_markets',
             client_auth_required => 1
         }
     );
 }
 
 sub get_show {
-    my ($self, $id, $market) = @_;
-    
+    my ( $self, $id, $market ) = @_;
+
     die "Show ID is required" unless $id;
-    
+
     my $params = { id => $id };
     $params->{market} = $market if $market;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_show',
-            params => $params,
+            method               => 'get_show',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_several_shows {
-    my ($self, $ids, $market) = @_;
-    
+    my ( $self, $ids, $market ) = @_;
+
     die "Show IDs are required" unless $ids;
-    
-    my $id_list = ref($ids) eq 'ARRAY' ? join(',', @$ids) : $ids;
-    
+
+    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
+
     my $params = { ids => $id_list };
     $params->{market} = $market if $market;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_several_shows',
-            params => $params,
+            method               => 'get_several_shows',
+            params               => $params,
             client_auth_required => 1
         }
     );
 }
 
 sub get_show_episodes {
-    my ($self, $id, %params) = @_;
-    
+    my ( $self, $id, %params ) = @_;
+
     die "Show ID is required" unless $id;
-    
+
     $params{id} = $id;
-    
+
     return $self->send_get_request(
         {
-            method => 'get_show_episodes',
-            params => \%params,
+            method               => 'get_show_episodes',
+            params               => \%params,
             client_auth_required => 1
         }
     );
