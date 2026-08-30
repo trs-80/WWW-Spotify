@@ -1,5 +1,25 @@
 {{$NEXT}}
 
+[SECURITY]
+- Re-enable TLS hostname verification: the PERL_LWP_SSL_VERIFY_HOSTNAME=0
+  overrides in _send_request, get_oauth_authorize and
+  get_client_credentials are gone
+- oauth_token_url must now be an https://accounts.spotify.com/ URL
+  before client credentials are sent to it
+- query_full_url() refuses non-https://api.spotify.com/ URLs whenever a
+  bearer token would be attached, so a poisoned paging URL in an API
+  response can no longer receive the token
+- uri_scheme and uri_hostname are read-only
+- Path-segment placeholders (IDs and similar) are uri_escaped when URLs
+  are built
+- Invalid JSON in token and API responses now dies instead of quietly
+  continuing (previously could send an empty bearer token)
+
+[OTHER]
+- get_oauth_authorize() returns the authorize URL instead of fetching
+  the login page server-side
+- GitHub Actions CI workflow (perl 5.24-5.38 on Linux, 5.38 on macOS)
+
 0.016     2026-08-30 02:30:39Z
 - Fix t/01 failing without SPOTIFY_CLIENT_ID: its live requests now sit
   behind a credential SKIP gate again, so installs and smokers no
