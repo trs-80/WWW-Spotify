@@ -1,4 +1,4 @@
-{{$NEXT}}
+0.017     2026-08-30 12:24:03Z
 
 [SECURITY]
 - Re-enable TLS hostname verification: the PERL_LWP_SSL_VERIFY_HOSTNAME=0
