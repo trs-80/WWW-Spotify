@@ -48,7 +48,7 @@ sub _mech { return $_[0]->{_mock} }
 package main;
 
 # ---------------------------------------------------------------------------
-# authorize_url — pure URL builder, no network
+# authorize_url - pure URL builder, no network
 # ---------------------------------------------------------------------------
 
 {
@@ -96,7 +96,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# get_access_token — exchanges a real authorization code
+# get_access_token - exchanges a real authorization code
 # ---------------------------------------------------------------------------
 
 {
@@ -175,7 +175,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# refresh_access_token — uses the stored refresh token
+# refresh_access_token - uses the stored refresh token
 # ---------------------------------------------------------------------------
 
 {
@@ -260,6 +260,128 @@ package main;
         $@,
         qr/refresh token/,
         'refresh_access_token dies without a stored refresh token'
+    );
+}
+
+# ---------------------------------------------------------------------------
+# S2: get_oauth_authorize - must return a URL string, not fire a network request
+# ---------------------------------------------------------------------------
+
+# It should return the same URL that authorize_url() builds (they share the
+# same inputs), and must NOT make any HTTP request via ua or _mech.
+{
+    # Subclass that dies if get() is called on the ua, proving no network hit
+    package MockUANoNetwork;
+    sub new { bless {}, shift }
+    sub get { die "get_oauth_authorize must not make a network request\n" }
+
+    package main;
+
+    my $s = WWW::Spotify->new(
+        oauth_client_id     => 'CLIENTX',
+        oauth_client_secret => 'SECRET',
+        oauth_redirect_uri  => 'http://127.0.0.1:8080/cb',
+    );
+
+    # Override the ua so any network call explodes
+    $s->{ua} = MockUANoNetwork->new();
+
+    my $url = $s->get_oauth_authorize();
+
+    like(
+        $url,
+        qr{^https://accounts\.spotify\.com/authorize\?},
+        'get_oauth_authorize returns an authorize URL, not HTML'
+    );
+    like( $url, qr{client_id=CLIENTX},  'client_id in URL' );
+    like( $url, qr{response_type=code}, 'response_type=code in URL' );
+    like(
+        $url,
+        qr{redirect_uri=http(?:%3A|:)},
+        'redirect_uri in URL'
+    );
+}
+
+# Calling it a second time with current_oath_code already set returns that code.
+{
+    my $s = WWW::Spotify->new(
+        oauth_client_id   => 'CLIENTX',
+        current_oath_code => 'EXISTINGCODE',
+    );
+    is(
+        $s->get_oauth_authorize(), 'EXISTINGCODE',
+        'get_oauth_authorize returns existing oath code when already set'
+    );
+}
+
+# ---------------------------------------------------------------------------
+# D2: oauth_token_url must be an accounts.spotify.com URL
+# ---------------------------------------------------------------------------
+
+# 2a. get_client_credentials dies if oauth_token_url is set to an off-origin host.
+{
+    my $s = WWW::Spotify->new(
+        oauth_client_id     => 'id',
+        oauth_client_secret => 'secret',
+        oauth_token_url     => 'https://evil.example.com/steal',
+    );
+    eval { $s->get_client_credentials() };
+    like(
+        $@, qr/not allowed|invalid.*token.*url|token.*url.*not allowed/i,
+        'D2: get_client_credentials dies when oauth_token_url is off-origin'
+    );
+}
+
+# 2b. _request_token (used by get_access_token/refresh_access_token) also dies
+#     for an off-origin oauth_token_url.
+{
+    my $s = WWW::Spotify->new(
+        oauth_client_id     => 'id',
+        oauth_client_secret => 'secret',
+        oauth_token_url     => 'https://evil.example.com/steal',
+    );
+    eval { $s->get_access_token('somecode') };
+    like(
+        $@, qr/not allowed|invalid.*token.*url|token.*url.*not allowed/i,
+        'D2: get_access_token dies when oauth_token_url is off-origin'
+    );
+}
+
+# 2c. The legitimate default URL must be accepted (no die).
+{
+    package MockMechToken;
+    sub new          { bless {}, shift }
+    sub clone        { $_[0] }
+    sub add_header   { }
+    sub post         { $_[0]->{called} = 1 }
+    sub content      { '{"access_token":"t","expires_in":3600}' }
+    sub status       { 200 }
+    sub content_type { 'application/json' }
+    sub ct           { 'application/json' }
+
+    package SpotifyTokenTestable;
+    use parent -norequire, 'WWW::Spotify';
+
+    sub new {
+        my ( $class, $mock, %args ) = @_;
+        my $self = $class->SUPER::new(%args);
+        $self->{_mock} = $mock;
+        return $self;
+    }
+    sub _mech { $_[0]->{_mock} }
+
+    package main;
+
+    my $mock = MockMechToken->new();
+    my $s    = SpotifyTokenTestable->new(
+        $mock,
+        oauth_client_id     => 'id',
+        oauth_client_secret => 'secret',
+    );
+    eval { $s->get_client_credentials() };
+    is(
+        $@, '',
+        'D2: get_client_credentials accepts the default accounts.spotify.com URL'
     );
 }
 

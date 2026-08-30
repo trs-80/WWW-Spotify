@@ -79,7 +79,7 @@ sub _mech { return $_[0]->{_mock} }
 package main;
 
 # ---------------------------------------------------------------------------
-# send_get_request — URL building
+# send_get_request - URL building
 # ---------------------------------------------------------------------------
 
 {
@@ -102,7 +102,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# send_get_request — query_full_url passthrough
+# send_get_request - query_full_url passthrough
 # ---------------------------------------------------------------------------
 
 {
@@ -123,7 +123,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# send_get_request — extra query params appended
+# send_get_request - extra query params appended
 # ---------------------------------------------------------------------------
 
 {
@@ -150,7 +150,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# send_get_request — auth header set when token present
+# send_get_request - auth header set when token present
 # ---------------------------------------------------------------------------
 
 {
@@ -172,7 +172,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# send_post_request — verb, URL, and body
+# send_post_request - verb, URL, and body
 # add_items_to_playlist maps to /v1/playlists/{playlist_id}/items
 # (renamed from /tracks in the Feb 2026 API changes)
 # ---------------------------------------------------------------------------
@@ -248,7 +248,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# send_put_request — verb and URL
+# send_put_request - verb and URL
 # save_shows_for_current_user maps to /v1/me/shows
 # ---------------------------------------------------------------------------
 
@@ -276,7 +276,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# send_delete_request — verb and URL
+# send_delete_request - verb and URL
 # ---------------------------------------------------------------------------
 
 {
@@ -916,6 +916,177 @@ package main;
                $s->token_expires_at() >= $before + 3600
             && $s->token_expires_at() <= $after + 3600,
         'get_client_credentials sets token_expires_at to time() + expires_in'
+    );
+}
+
+# ---------------------------------------------------------------------------
+# S1: query_full_url origin validation (SSRF / token-leak prevention)
+# ---------------------------------------------------------------------------
+
+# 1a. A URL on the allowed origin (api.spotify.com) must be sent normally.
+{
+    my $mock = MockMech->new( status => HTTP_OK );
+    my $s    = SpotifyTestable->new(
+        $mock,
+        force_client_auth    => 0,
+        current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
+    );
+
+    $s->query_full_url( 'https://api.spotify.com/v1/me/playlists', 1 );
+
+    is(
+        $mock->{last_url},
+        'https://api.spotify.com/v1/me/playlists',
+        'query_full_url passes allowed origin through unchanged'
+    );
+    is(
+        $mock->{headers}{Authorization},
+        'Bearer tok',
+        'query_full_url sends auth header for allowed origin'
+    );
+}
+
+# 1b. A URL on a different host must be rejected (die) when auth would be sent.
+{
+    my $mock = MockMech->new( status => HTTP_OK );
+    my $s    = SpotifyTestable->new(
+        $mock,
+        force_client_auth    => 0,
+        current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
+    );
+
+    eval { $s->query_full_url( 'https://evil.example.com/steal', 1 ); };
+    like(
+        $@, qr/not allowed/i,
+        'query_full_url dies for off-origin credentialed URL'
+    );
+    is(
+        $mock->{last_url}, undef,
+        'query_full_url makes no HTTP request for off-origin URL'
+    );
+}
+
+# 1c. next_result_set / previous_result_set feed query_full_url from API data -
+#     a non-Spotify "next" URL in the response must be rejected.
+{
+    my $evil_json = encode_json(
+        {
+            next => 'https://evil.example.com/exfiltrate',
+        }
+    );
+    my $mock = MockMech->new( status => HTTP_OK, content => $evil_json );
+    my $s    = SpotifyTestable->new(
+        $mock,
+        force_client_auth    => 0,
+        current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
+    );
+
+    # Seed last_result so get('next') returns the evil URL
+    $s->last_result($evil_json);
+
+    eval { $s->next_result_set() };
+    like(
+        $@, qr/not allowed/i,
+        'next_result_set rejects off-origin URL from API response'
+    );
+    is(
+        $mock->{last_url}, undef,
+        'next_result_set makes no HTTP request for off-origin URL'
+    );
+}
+
+# ---------------------------------------------------------------------------
+# D5: uri_hostname and uri_scheme must be read-only (ro)
+# ---------------------------------------------------------------------------
+
+# 5a. Attempting to mutate uri_hostname via the accessor must die.
+{
+    my $s = WWW::Spotify->new();
+    eval { $s->uri_hostname('evil.example.com') };
+    like(
+        $@, qr/read.?only|cannot|modify|Usage/i,
+        'D5: uri_hostname is read-only - cannot be changed after construction'
+    );
+}
+
+# 5b. Attempting to mutate uri_scheme via the accessor must die.
+{
+    my $s = WWW::Spotify->new();
+    eval { $s->uri_scheme('http') };
+    like(
+        $@, qr/read.?only|cannot|modify|Usage/i,
+        'D5: uri_scheme is read-only - cannot be changed after construction'
+    );
+}
+
+# 5c. The values set at construction time are honoured.
+{
+    my $s = WWW::Spotify->new(
+        uri_hostname => 'api.spotify.com',
+        uri_scheme   => 'https',
+    );
+    is(
+        $s->uri_hostname, 'api.spotify.com',
+        'D5: uri_hostname readable after construction'
+    );
+    is(
+        $s->uri_scheme, 'https',
+        'D5: uri_scheme readable after construction'
+    );
+}
+
+# ---------------------------------------------------------------------------
+# D4: response_status and response_content_type must have safe defaults
+# ---------------------------------------------------------------------------
+
+# Calling send_post_request checks response_content_type() in a regex before
+# any response has arrived.  Without a default the attribute is undef and Perl
+# emits "Use of uninitialized value in pattern match".
+# Verify both attributes exist and are defined on a freshly constructed object.
+{
+    my $s = WWW::Spotify->new();
+    ok(
+        defined $s->response_status(),
+        'D4: response_status is defined on a fresh object'
+    );
+    ok(
+        defined $s->response_content_type(),
+        'D4: response_content_type is defined on a fresh object'
+    );
+    is( $s->response_status(), 0, 'D4: response_status defaults to 0' );
+    is(
+        $s->response_content_type(), '',
+        'D4: response_content_type defaults to empty string'
+    );
+}
+
+# ---------------------------------------------------------------------------
+# D3: get_client_credentials must die (not silently continue) on token failure
+# ---------------------------------------------------------------------------
+
+# When the token endpoint returns no access_token (e.g. wrong credentials,
+# rate limited, etc.) the caller must get a clear exception, not silent
+# continuation that leads to a Bearer '' request later.
+{
+    my $mock = MockMechTokenRefresh->new(
+        status         => HTTP_OK,
+        token_response => '{"error":"invalid_client"}',
+    );
+
+    my $s = SpotifyRefreshable->new(
+        $mock,
+        force_client_auth   => 0,
+        oauth_client_id     => 'id',
+        oauth_client_secret => 'wrong_secret',
+    );
+
+    eval { $s->get_client_credentials() };
+    like(
+        $@, qr/failed.*token|token.*fail|access token/i,
+        'D3: get_client_credentials dies when token endpoint returns no access_token'
     );
 }
 

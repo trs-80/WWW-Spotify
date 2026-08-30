@@ -12,7 +12,7 @@ use JSON::MaybeXS     qw( decode_json encode_json );
 use MIME::Base64      qw( encode_base64 );
 use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
 use HTTP::Status      qw( HTTP_OK is_success );
-use URI::Escape       qw( uri_escape );
+use URI::Escape       qw( uri_escape uri_escape_utf8 );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -87,7 +87,7 @@ has 'debug' => (
 );
 
 has 'uri_scheme' => (
-    is      => 'rw',
+    is      => 'ro',
     isa     => Str,
     default => 'https'
 );
@@ -105,7 +105,7 @@ has 'force_client_auth' => (
 );
 
 has 'uri_hostname' => (
-    is      => 'rw',
+    is      => 'ro',
     isa     => Str,
     default => 'api.spotify.com'
 );
@@ -163,13 +163,15 @@ has 'ua' => (
 );
 
 has 'response_status' => (
-    is  => 'rw',
-    isa => Int
+    is      => 'rw',
+    isa     => Int,
+    default => 0
 );
 
 has 'response_content_type' => (
-    is  => 'rw',
-    isa => Str
+    is      => 'rw',
+    isa     => Str,
+    default => q{}
 );
 
 has 'custom_request_handler' => (
@@ -686,6 +688,9 @@ my %method_to_uri = ();
 
 foreach my $entry (@api_call_options) {
     next if $entry->{method} eq q{};
+    warn
+        "WWW::Spotify: duplicate method '$entry->{method}' in \@api_call_options\n"
+        if exists $method_to_uri{ $entry->{method} };
     $method_to_uri{ $entry->{method} } = $entry->{path};
 }
 
@@ -706,8 +711,29 @@ sub _build_url {
     my %unused = %{ $attributes->{params} || {} };
 
     if ($path) {
-        $path
-            =~ s/\{([^}]+)\}/my $v = delete $unused{$1}; defined $v ? $v : q{}/ge;
+        my ( $path_part, $query_part ) = split /\?/, $path, 2;
+
+        # Path-segment placeholders: fully escape the value.
+        $path_part =~ s/\{([^}]+)\}/
+            my $v = delete $unused{$1};
+            defined $v ? uri_escape($v) : q{}
+        /ge;
+
+        if ( defined $query_part ) {
+
+            # Query-string placeholders: substitute raw.  Callers are
+            # responsible for any encoding needed (e.g. _uris_param pre-escapes
+            # Spotify URIs; search() pre-escapes q and type).
+            $query_part =~ s/\{([^}]+)\}/
+                my $v = delete $unused{$1};
+                defined $v ? $v : q{}
+            /ge;
+            $path = $path_part . '?' . $query_part;
+        }
+        else {
+            $path = $path_part;
+        }
+
         $url .= $path;
     }
 
@@ -732,7 +758,6 @@ sub _send_request {
             unless $deprecation_warned{$method}++;
     }
 
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
     my $mech = $self->_mech;
 
     if (   $attributes->{client_auth_required}
@@ -895,14 +920,26 @@ sub send_get_request {
 
             warn "raw: $path" if $self->debug();
 
-            if ( $path =~ /search/ && $attributes->{method} eq 'search' ) {
-                $path =~ s/\{q\}/uri_escape( $attributes->{q} )/e;
-                $path =~ s/\{type\}/uri_escape( $attributes->{type} )/e;
-            }
+            if ( $attributes->{params} ) {
 
-            # Generic substitution for all remaining {placeholder} tokens
-            $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g
-                if $attributes->{params};
+                # Split on '?' so we only uri_escape values that appear in the
+                # path segment.  Query-string placeholder values (comma-lists,
+                # pre-escaped URIs, etc.) must be left as-is.
+                my ( $path_part, $query_part ) = split /\?/, $path, 2;
+
+                $path_part
+                    =~ s/\{([^}]+)\}/uri_escape( $attributes->{params}{$1} )/ge;
+
+                if ( defined $query_part ) {
+
+                    # Substitute raw - callers pre-escape what needs escaping.
+                    $query_part =~ s/\{([^}]+)\}/$attributes->{params}{$1}/ge;
+                    $path = $path_part . '?' . $query_part;
+                }
+                else {
+                    $path = $path_part;
+                }
+            }
 
             warn "modified: $path\n" if $self->debug();
         }
@@ -962,15 +999,10 @@ sub format_results {
     # we want to interact with it via a helper method
     $self->last_result($content);
 
-    # FIX ME / TEST ME
-    # vefify both of these work and return the *same* perl hash
-
-    # when / how should we check the status? Do we need to?
-    # if so then we need to create another method that will
-    # manage a Sucess vs. Fail request
-
     if ( $self->auto_json_decode && $self->result_format eq 'json' ) {
-        return decode_json $content;
+        my $decoded = eval { decode_json($content) };
+        die "format_results: last_result is not valid JSON: $@\n" if $@;
+        return $decoded;
     }
 
     # results are not altered in this case and would be
@@ -982,30 +1014,17 @@ sub format_results {
 sub get_oauth_authorize {
     my $self = shift;
 
+    # If an OAuth code was previously stored, return it immediately.
     if ( $self->current_oath_code() ) {
         return $self->current_oath_code();
     }
 
-    my $grant_type = 'authorization_code';
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $client_and_secret
-        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
-    my $encoded = encode_base64($client_and_secret);
-    chomp($encoded);
-    $encoded =~ s/\n//g;
-    my $url = $self->oauth_authorize_url();
-
-    my @parts;
-
-    $parts[0] = 'response_type=code';
-    $parts[1] = 'redirect_uri=' . $self->oauth_redirect_uri;
-
-    my $params = join( '&', @parts );
-    $url = $url . '?client_id=' . $self->oauth_client_id() . "&$params";
-
-    $self->ua->get($url);
-
-    return $self->ua->content;
+    # Return the authorization URL for the caller to redirect the user to.
+    # The old implementation fired this URL server-side (fetching a browser
+    # login page) which was both broken and a security concern - the UA was
+    # bypassing all auth-header machinery and the result was discarded HTML.
+    # authorize_url() builds the same URL correctly with proper URI escaping.
+    return $self->authorize_url();
 }
 
 sub get_client_credentials {
@@ -1018,24 +1037,16 @@ sub get_client_credentials {
     if ( $self->oauth_client_id() eq q{} ) {
         die "need to set the client oauth parameters\n";
     }
+    $self->_assert_token_url();
 
     my $grant_type = 'client_credentials';
-    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
-    my $mech = $self->_mech;
+    my $mech       = $self->_mech;
     my $client_and_secret
         = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
     my $encoded = encode_base64($client_and_secret);
     my $url     = $self->oauth_token_url();
 
-    # $url .= "?grant_type=client_credentials";
-    # my $url = $self->oauth_authorize_url();
-    # grant_type=client_credentials
-    my $extra = {
-        grant_type => $grant_type
-
-            #code => 'code',
-            #redirect_uri => $self->oauth_redirect_uri
-    };
+    my $extra = { grant_type => $grant_type };
     if ($scope) {
         $extra->{scope} = $scope;
     }
@@ -1047,17 +1058,16 @@ sub get_client_credentials {
     $mech->post( $url, [$extra] );
     my $content = $mech->content();
 
-    if ( $content =~ /access_token/ ) {
+    my $result = eval { decode_json $content };
+    if ( $result && $result->{'access_token'} ) {
         warn "setting access token\n" if $self->debug();
-
-        my $result = decode_json $content;
-
-        if ( $result->{'access_token'} ) {
-            $self->current_access_token( $result->{'access_token'} );
-            if ( $result->{'expires_in'} ) {
-                $self->token_expires_at( time() + $result->{'expires_in'} );
-            }
+        $self->current_access_token( $result->{'access_token'} );
+        if ( $result->{'expires_in'} ) {
+            $self->token_expires_at( time() + $result->{'expires_in'} );
         }
+    }
+    else {
+        die "get_client_credentials: failed to obtain access token\n";
     }
 }
 
@@ -1076,8 +1086,18 @@ sub authorize_url {
     return $self->oauth_authorize_url() . '?' . join '&', @parts;
 }
 
+sub _assert_token_url {
+    my ($self) = @_;
+    die "oauth_token_url '${\$self->oauth_token_url}' is not allowed - "
+        . "only https://accounts.spotify.com/ URLs are permitted\n"
+        unless $self->oauth_token_url
+        =~ m{\Ahttps://accounts\.spotify\.com/}i;
+}
+
 sub _request_token {
     my ( $self, $form ) = @_;
+
+    $self->_assert_token_url();
 
     my $encoded = encode_base64(
         $self->oauth_client_id() . ':' . $self->oauth_client_secret(), q{} );
@@ -1145,11 +1165,13 @@ sub get {
 
     my ( $self, @return ) = @_;
 
-    # my @return = @_;
-
     my @out;
 
-    my $result = decode_json $self->last_result();
+    die "get(): no result available - make an API call first\n"
+        unless length $self->last_result();
+
+    my $result = eval { decode_json( $self->last_result() ) };
+    die "get(): last_result is not valid JSON: $@\n" if $@;
 
     my $search_ref = $result;
 
@@ -1209,6 +1231,16 @@ sub query_full_url {
     my $self                 = shift;
     my $url                  = shift;
     my $client_auth_required = shift || 0;
+
+    # Prevent bearer-token leakage to off-origin hosts.  All Spotify API
+    # responses that contain URLs (next/previous paging, href fields) point to
+    # api.spotify.com; anything else is unexpected and potentially malicious.
+    if ( $client_auth_required || $self->force_client_auth() ) {
+        die "query_full_url: URL '$url' is not allowed - "
+            . "only https://api.spotify.com/ URLs may be called with credentials\n"
+            unless $url =~ m{\Ahttps://api\.spotify\.com/}i;
+    }
+
     return $self->send_get_request(
         {
             method               => 'query_full_url',
@@ -1224,6 +1256,8 @@ sub album {
     my $self = shift;
     my $id   = shift;
 
+    die "album id is required\n" unless defined $id && length $id;
+
     return $self->send_get_request(
         {
             method               => 'album',
@@ -1236,6 +1270,8 @@ sub album {
 sub albums {
     my $self = shift;
     my $ids  = shift;
+
+    die "albums ids is required\n" unless defined $ids && length $ids;
 
     if ( ref($ids) eq 'ARRAY' ) {
         $ids = join_ids($ids);
@@ -1261,6 +1297,8 @@ sub albums_tracks {
     my $album_id = shift;
     my $extras   = shift;
 
+    die "album_id is required\n" unless defined $album_id && length $album_id;
+
     return $self->send_get_request(
         {
             method               => 'albums_tracks',
@@ -1276,6 +1314,8 @@ sub artist {
     my $self = shift;
     my $id   = shift;
 
+    die "artist id is required\n" unless defined $id && length $id;
+
     return $self->send_get_request(
         {
             method               => 'artist',
@@ -1289,6 +1329,9 @@ sub artist {
 sub artists {
     my $self    = shift;
     my $artists = shift;
+
+    die "artists ids is required\n"
+        unless defined $artists && length $artists;
 
     if ( ref($artists) eq 'ARRAY' ) {
         $artists = join_ids($artists);
@@ -1309,6 +1352,9 @@ sub artist_albums {
     my $artist_id = shift;
     my $extras    = shift;
 
+    die "artist_id is required\n"
+        unless defined $artist_id && length $artist_id;
+
     return $self->send_get_request(
         {
             method               => 'artist_albums',
@@ -1325,14 +1371,17 @@ sub artist_top_tracks {
     my $artist_id = shift;
     my $country   = shift;
 
+    die "artist_id is required\n"
+        unless defined $artist_id && length $artist_id;
+
     return $self->send_get_request(
         {
             method => 'artist_top_tracks',
             params => {
-                'id'                 => $artist_id,
-                'country'            => $country,
-                client_auth_required => 1
-            }
+                'id'      => $artist_id,
+                'country' => $country,
+            },
+            client_auth_required => 1
         }
     );
 
@@ -1341,15 +1390,14 @@ sub artist_top_tracks {
 sub artist_related_artists {
     my $self      = shift;
     my $artist_id = shift;
-    my $country   = shift;
+
+    die "artist_id is required\n"
+        unless defined $artist_id && length $artist_id;
 
     return $self->send_get_request(
         {
             method => 'artist_related_artists',
             params => { 'id' => $artist_id }
-
-            #            'country' => $country
-            #          }
         }
     );
 
@@ -1385,6 +1433,9 @@ sub search {
     my $type   = shift;
     my $extras = shift;
 
+    die "search query (q) is required\n" unless defined $q    && length $q;
+    die "search type is required\n"      unless defined $type && length $type;
+
     # looks like search now requires auth
     # we will force authentication but need to
     # reset this to the previous value since not
@@ -1392,15 +1443,17 @@ sub search {
     my $old_force_client_auth = $self->force_client_auth();
     $self->force_client_auth(1);
 
-    my $params = {
-        method => 'search',
-        q      => $q,
-        type   => $type,
-        extras => $extras
-
-    };
-
-    my $response = $self->send_get_request($params);
+    my $response = $self->send_get_request(
+        {
+            method => 'search',
+            params => {
+                q    => uri_escape($q),
+                type => uri_escape($type),
+            },
+            extras               => $extras,
+            client_auth_required => 1,
+        }
+    );
 
     # reset auth to what it was before to avoid overly chatty
     # requests
@@ -1411,6 +1464,9 @@ sub search {
 sub track {
     my $self = shift;
     my $id   = shift;
+
+    die "track id is required\n" unless defined $id && length $id;
+
     return $self->send_get_request(
         {
             method => 'track',
@@ -1459,6 +1515,8 @@ sub tracks {
     my $self   = shift;
     my $tracks = shift;
 
+    die "tracks ids is required\n" unless defined $tracks && length $tracks;
+
     if ( ref($tracks) eq 'ARRAY' ) {
         $tracks = join_ids($tracks);
     }
@@ -1475,6 +1533,9 @@ sub tracks {
 sub user {
     my $self    = shift;
     my $user_id = shift;
+
+    die "user_id is required\n" unless defined $user_id && length $user_id;
+
     return $self->send_get_request(
         {
             method => 'user',
@@ -1486,6 +1547,10 @@ sub user {
 
 sub get_playlist {
     my ( $self, $playlist_id ) = @_;
+
+    die "playlist_id is required\n"
+        unless defined $playlist_id && length $playlist_id;
+
     return $self->send_get_request(
         {
             method               => 'get_playlist',
@@ -1497,6 +1562,10 @@ sub get_playlist {
 
 sub get_playlist_items {
     my ( $self, $playlist_id, $extras ) = @_;
+
+    die "playlist_id is required\n"
+        unless defined $playlist_id && length $playlist_id;
+
     return $self->send_get_request(
         {
             method               => 'get_playlist_items',
@@ -1537,6 +1606,9 @@ sub get_current_user_playlists {
 sub add_items_to_playlist {
     my ( $self, $playlist_id, $uris, $position ) = @_;
 
+    die "playlist_id is required\n"
+        unless defined $playlist_id && length $playlist_id;
+
     my %params = (
         'playlist_id' => $playlist_id,
         'uris'        => ref $uris eq 'ARRAY' ? $uris : [$uris],
@@ -1554,6 +1626,10 @@ sub add_items_to_playlist {
 
 sub unfollow_playlist {
     my ( $self, $playlist_id ) = @_;
+
+    die "playlist_id is required\n"
+        unless defined $playlist_id && length $playlist_id;
+
     return $self->send_delete_request(
         {
             method               => 'unfollow_playlist',
@@ -1741,9 +1817,9 @@ sub check_if_user_follows_playlist {
     );
 }
 
-# Spotify URIs contain ':' so they must be escaped before being placed
-# in the uris= query parameter.  Commas separating multiple URIs are
-# escaped too (%2C), which the API accepts.
+# Spotify URIs contain ':' and commas separate multiple items; both must be
+# percent-encoded before being spliced into a query string by _build_url /
+# send_get_request (which perform a raw substitution on the query part).
 sub _uris_param {
     my $uris = shift;
     $uris = join( ',', @{$uris} ) if ref $uris eq 'ARRAY';
@@ -2100,7 +2176,7 @@ WWW::Spotify - Spotify Web API Wrapper
 
 =head1 VERSION
 
-version 0.013
+version 0.017
 
 =head1 SYNOPSIS
 

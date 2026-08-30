@@ -209,6 +209,10 @@ sub mocked {
         $mock->{last_url}, qr{client_auth_required},
         'internal auth flag does not leak into the query string'
     );
+    is(
+        $mock->{headers}{Authorization}, 'Bearer tok',
+        'artist_top_tracks sends Authorization header'
+    );
 }
 
 {
@@ -228,6 +232,165 @@ sub mocked {
         $mock->{last_url}, qr{/v1/users/glennpmcdonald},
         'user builds correct URL'
     );
+}
+
+# ---------------------------------------------------------------------------
+# S3: get() must give a meaningful error when last_result is empty or non-JSON
+# ---------------------------------------------------------------------------
+
+# 3a. Calling get() before any request has been made (last_result is '')
+{
+    my $s = WWW::Spotify->new();
+    eval { $s->get('artists.items[0].name') };
+    like(
+        $@, qr/no result/i,
+        'get() gives a clear error when last_result is empty'
+    );
+}
+
+# 3b. Calling get() when the last response was non-JSON (e.g. an HTML error page)
+{
+    my $s = WWW::Spotify->new();
+    $s->last_result('<html><body>503 Service Unavailable</body></html>');
+    eval { $s->get('name') };
+    like(
+        $@, qr/not valid JSON/i,
+        'get() gives a clear error when last_result is not valid JSON'
+    );
+}
+
+# ---------------------------------------------------------------------------
+# D1: older methods must die with a clear error on undef/empty ID
+# ---------------------------------------------------------------------------
+
+{
+    my ($s) = mocked();
+
+    for my $call (
+        [ 'album',                 sub { $s->album(undef) } ],
+        [ 'album (empty string)',  sub { $s->album('') } ],
+        [ 'albums',                sub { $s->albums(undef) } ],
+        [ 'artist',                sub { $s->artist(undef) } ],
+        [ 'artist (empty string)', sub { $s->artist('') } ],
+        [ 'artists',               sub { $s->artists(undef) } ],
+        [ 'artist_albums',         sub { $s->artist_albums(undef) } ],
+        [ 'artist_top_tracks', sub { $s->artist_top_tracks( undef, 'US' ) } ],
+        [
+            'artist_related_artists',
+            sub { $s->artist_related_artists(undef) }
+        ],
+        [ 'track',               sub { $s->track(undef) } ],
+        [ 'tracks',              sub { $s->tracks(undef) } ],
+        [ 'user',                sub { $s->user(undef) } ],
+        [ 'user (empty string)', sub { $s->user('') } ],
+        [ 'get_playlist',        sub { $s->get_playlist(undef) } ],
+        [ 'get_playlist_items',  sub { $s->get_playlist_items(undef) } ],
+    ) {
+        my ( $label, $code ) = @$call;
+        eval { $code->() };
+        like(
+            $@, qr/required/i,
+            "D1: $label dies with 'required' on missing ID"
+        );
+    }
+}
+
+# ---------------------------------------------------------------------------
+# S4: format_results must not crash with a raw die when auto_json_decode is on
+#     and the API returns non-JSON content
+# ---------------------------------------------------------------------------
+
+# 4a. Non-JSON response body with auto_json_decode => 1 must give a clear error,
+#     not a raw Cpanel::JSON::XS/JSON::XS parse crash.
+{
+    my $mock = MockMech->new(
+        status  => 200,
+        content => '<html>Service Unavailable</html>',
+    );
+    my $s = SpotifyTestable->new(
+        $mock,
+        force_client_auth    => 0,
+        current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
+        auto_json_decode     => 1,
+    );
+
+    eval { $s->album('ABC123') };
+    like(
+        $@, qr/not valid JSON|invalid JSON|json/i,
+        'S4: auto_json_decode=1 gives clear error on non-JSON response'
+    );
+}
+
+# 4b. Valid JSON with auto_json_decode => 1 must return a decoded data structure.
+{
+    use JSON::MaybeXS qw( encode_json );
+    my $payload = encode_json( { name => 'My Album' } );
+    my $mock    = MockMech->new( status => 200, content => $payload );
+    my $s       = SpotifyTestable->new(
+        $mock,
+        force_client_auth    => 0,
+        current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
+        auto_json_decode     => 1,
+    );
+
+    my $result = eval { $s->album('ABC123') };
+    is(
+        $@, '',
+        'S4: auto_json_decode=1 does not die on valid JSON response'
+    );
+    is(
+        ref($result), 'HASH',
+        'S4: auto_json_decode=1 returns a decoded hashref'
+    );
+    is( $result->{name}, 'My Album', 'S4: decoded result has correct value' );
+}
+
+# ---------------------------------------------------------------------------
+# S5: search() must die clearly on undef/empty $q or $type
+# ---------------------------------------------------------------------------
+
+{
+    my ($s) = mocked();
+
+    for my $call (
+        [ 'search undef q',    sub { $s->search( undef,       'track' ) } ],
+        [ 'search empty q',    sub { $s->search( '',          'track' ) } ],
+        [ 'search undef type', sub { $s->search( 'beethoven', undef ) } ],
+        [ 'search empty type', sub { $s->search( 'beethoven', '' ) } ],
+    ) {
+        my ( $label, $code ) = @$call;
+        eval { $code->() };
+        like( $@, qr/required/i, "S5: $label dies with 'required'" );
+    }
+}
+
+# ---------------------------------------------------------------------------
+# S6: albums_tracks / add_items_to_playlist / unfollow_playlist need ID guards
+# ---------------------------------------------------------------------------
+
+{
+    my ($s) = mocked();
+
+    for my $call (
+        [ 'albums_tracks undef', sub { $s->albums_tracks(undef) } ],
+        [ 'albums_tracks empty', sub { $s->albums_tracks('') } ],
+        [
+            'add_items_to_playlist undef',
+            sub { $s->add_items_to_playlist( undef, ['spotify:track:abc'] ) }
+        ],
+        [
+            'add_items_to_playlist empty',
+            sub { $s->add_items_to_playlist( '', ['spotify:track:abc'] ) }
+        ],
+        [ 'unfollow_playlist undef', sub { $s->unfollow_playlist(undef) } ],
+        [ 'unfollow_playlist empty', sub { $s->unfollow_playlist('') } ],
+    ) {
+        my ( $label, $code ) = @$call;
+        eval { $code->() };
+        like( $@, qr/required/i, "S6: $label dies with 'required'" );
+    }
 }
 
 done_testing();
