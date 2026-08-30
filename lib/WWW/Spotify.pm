@@ -2,7 +2,7 @@ package WWW::Spotify;
 
 use Moo 2.002004;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use Carp              qw( carp );
 use Data::Dumper      qw( Dumper );
