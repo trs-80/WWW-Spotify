@@ -1,24 +1,18 @@
 package WWW::Spotify;
 
-use 5.012;
-use strict;
-use warnings;
-
 use Moo 2.002004;
 
-# roles will be composed later in the file (after attribute declarations)
+our $VERSION = '0.015';
 
-our $VERSION = '0.013';
-
+use Carp              qw( carp );
 use Data::Dumper      qw( Dumper );
 use IO::CaptureOutput qw( capture );
 use JSON::Path        ();
-
-# JSON::MaybeXS exports encode_json only when asked; we now need both
-use JSON::MaybeXS   qw( decode_json encode_json );
-use MIME::Base64    qw( encode_base64 );
-use Types::Standard qw( Bool InstanceOf Int Str CodeRef );
-use HTTP::Status    qw( HTTP_OK HTTP_NO_CONTENT );
+use JSON::MaybeXS     qw( decode_json encode_json );
+use MIME::Base64      qw( encode_base64 );
+use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
+use HTTP::Status      qw( HTTP_OK is_success );
+use URI::Escape       qw( uri_escape );
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -50,31 +44,19 @@ has 'oauth_client_secret' => (
     default => $ENV{SPOTIFY_CLIENT_SECRET} || q{}
 );
 
-# keep for backwards compat: alias misspelled attribute name
-# DEPRECATED: use current_oauth_code instead (fixed spelling)
-# The original attribute was misspelled as "current_oath_code".
-# It is retained here as a lazy delegate to the correctly spelled
-# attribute so that existing user code continues to work without
-# modification.
-
-has 'current_oauth_code' => (
+has 'current_oath_code' => (
     is      => 'rw',
     isa     => Str,
     default => q{}
 );
 
-# backward‑compat alias (read/write)
-
-# The misspelled accessor is retained as a thin wrapper so external
-# code that might call it continues to work.  It simply forwards to
-# current_oauth_code.
-
-sub current_oath_code {
-    my $self = shift;
-    return $self->current_oauth_code(@_);
-}
-
 has 'current_access_token' => (
+    is      => 'rw',
+    isa     => Str,
+    default => q{}
+);
+
+has 'refresh_token' => (
     is      => 'rw',
     isa     => Str,
     default => q{}
@@ -151,12 +133,6 @@ has 'last_result' => (
     default => q{}
 );
 
-has 'last_response' => (
-    is        => 'rw',
-    isa       => InstanceOf ['WWW::Spotify::Response'],
-    predicate => 'has_last_response',
-);
-
 has 'last_error' => (
     is      => 'rw',
     isa     => Str,
@@ -213,224 +189,259 @@ has 'die_on_response_error' => (
     default => 0
 );
 
-# ------------------------------------------------------------------
-# Compose roles *after* all attribute declarations so that the
-# requirements declared by those roles are satisfied.  The roles are
-# currently responsible for authentication logic and generic HTTP
-# helpers.
-# ------------------------------------------------------------------
-
-with qw(
-    WWW::Spotify::Client
-    WWW::Spotify::Endpoint
+has 'token_expires_at' => (
+    is      => 'rw',
+    isa     => Int,
+    default => 0
 );
 
-my %api_call_options = (
-    '/v1/albums/{id}' => {
+my @api_call_options = (
+    {
+        path   => '/v1/albums/{id}',
         info   => 'Get an album',
         type   => 'GET',
         method => 'album'
     },
 
-    '/v1/audiobooks/{id}' => {
+    {
+        path   => '/v1/audiobooks/{id}',
         info   => 'Get an audiobook',
         type   => 'GET',
         method => 'get_audiobook',
         params => ['market']
     },
 
-    '/v1/audiobooks' => {
+    {
+        path   => '/v1/audiobooks',
         info   => 'Get several audiobooks',
         type   => 'GET',
         method => 'get_several_audiobooks',
         params => [ 'ids', 'market' ]
     },
 
-    '/v1/audiobooks/{id}/chapters' => {
+    {
+        path   => '/v1/audiobooks/{id}/chapters',
         info   => 'Get Audiobook Chapters',
         type   => 'GET',
         method => 'get_audiobook_chapters',
         params => [ 'id', 'market', 'limit', 'offset' ]
     },
 
-    '/v1/me/audiobooks|GET' => {
+    {
+        path   => '/v1/me/audiobooks',
         info   => 'Get User\'s Saved Audiobooks',
         type   => 'GET',
         method => 'get_users_saved_audiobooks',
         params => [ 'limit', 'offset' ]
     },
 
-    '/v1/me/audiobooks|PUT' => {
+    {
+        path   => '/v1/me/audiobooks',
         info   => 'Save Audiobooks for Current User',
         type   => 'PUT',
         method => 'save_audiobooks_for_current_user',
         params => ['ids']
     },
 
-    '/v1/me/audiobooks|DELETE' => {
+    {
+        path   => '/v1/me/audiobooks',
         info   => 'Remove User\'s Saved Audiobooks',
         type   => 'DELETE',
         method => 'remove_users_saved_audiobooks',
         params => ['ids']
     },
 
-    '/v1/me/audiobooks/contains' => {
+    {
+        path   => '/v1/me/audiobooks/contains',
         info   => 'Check User\'s Saved Audiobooks',
         type   => 'GET',
         method => 'check_users_saved_audiobooks',
         params => ['ids']
     },
 
-    '/v1/me/shows|GET' => {
+    {
+        path   => '/v1/me/shows',
         info   => 'Get User\'s Saved Shows',
         type   => 'GET',
         method => 'get_users_saved_shows',
         params => [ 'limit', 'offset' ]
     },
 
-    '/v1/me/shows|PUT' => {
+    {
+        path   => '/v1/me/shows',
         info   => 'Save Shows for Current User',
         type   => 'PUT',
         method => 'save_shows_for_current_user',
         params => ['ids']
     },
 
-    '/v1/me/shows/contains' => {
+    {
+        path   => '/v1/me/shows/contains',
         info   => 'Check User\'s Saved Shows',
         type   => 'GET',
         method => 'check_users_saved_shows',
         params => ['ids']
     },
 
-    '/v1/browse/categories' => {
+    {
+        path   => '/v1/browse/categories',
         info   => 'Get Several Browse Categories',
         type   => 'GET',
         method => 'get_categories',
         params => [ 'country', 'locale', 'limit', 'offset' ]
     },
 
-    '/v1/browse/categories/{category_id}' => {
+    {
+        path   => '/v1/browse/categories/{category_id}',
         info   => 'Get Single Browse Category',
         type   => 'GET',
         method => 'get_category',
         params => [ 'category_id', 'locale' ]
     },
 
-    '/v1/chapters/{id}' => {
+    {
+        path   => '/v1/chapters/{id}',
         info   => 'Get a Chapter',
         type   => 'GET',
         method => 'get_chapter',
         params => [ 'id', 'market' ]
     },
 
-    '/v1/chapters' => {
+    {
+        path   => '/v1/chapters',
         info   => 'Get Several Chapters',
         type   => 'GET',
         method => 'get_several_chapters',
         params => [ 'ids', 'market' ]
     },
 
-    '/v1/recommendations/available-genre-seeds' => {
+    {
+        path   => '/v1/recommendations/available-genre-seeds',
         info   => 'Get Available Genre Seeds',
         type   => 'GET',
         method => 'get_available_genre_seeds'
     },
 
-    '/v1/markets' => {
+    {
+        path   => '/v1/markets',
         info   => 'Get Available Markets',
         type   => 'GET',
         method => 'get_available_markets'
     },
 
-    '/v1/shows/{id}' => {
+    {
+        path   => '/v1/shows/{id}',
         info   => 'Get a Show',
         type   => 'GET',
         method => 'get_show',
         params => ['market']
     },
 
-    '/v1/shows' => {
+    {
+        path   => '/v1/shows',
         info   => 'Get Several Shows',
         type   => 'GET',
         method => 'get_several_shows',
         params => [ 'ids', 'market' ]
     },
 
-    '/v1/shows/{id}/episodes' => {
+    {
+        path   => '/v1/shows/{id}/episodes',
         info   => 'Get Show Episodes',
         type   => 'GET',
         method => 'get_show_episodes',
         params => [ 'id', 'market', 'limit', 'offset' ]
     },
 
-    '/v1/albums?ids={ids}' => {
+    {
+        path   => '/v1/albums?ids={ids}',
         info   => 'Get several albums',
         type   => 'GET',
         method => 'albums',
         params => [ 'limit', 'offset' ]
     },
 
-    '/v1/playlists/{playlist_id}' => {
+    {
+        path   => '/v1/playlists/{playlist_id}',
         info   => 'Get a playlist',
         type   => 'GET',
         method => 'get_playlist'
     },
 
-    '/v1/playlists/{playlist_id}/tracks|GET' => {
+    {
+        path   => '/v1/playlists/{playlist_id}/items',
         info   => 'Get playlist items',
         type   => 'GET',
         method => 'get_playlist_items',
         params => [ 'limit', 'offset', 'market', 'fields' ]
     },
 
-    '/v1/users/{user_id}/playlists|POST' => {
-        info   => 'Create a playlist',
+    {
+        path   => '/v1/me/playlists',
+        info   => 'Create a playlist for the current user',
         type   => 'POST',
         method => 'create_playlist'
     },
 
-    '/v1/me/playlists' => {
+    {
+        path   => '/v1/me/playlists',
         info   => 'Get current user\'s playlists',
         type   => 'GET',
         method => 'get_current_user_playlists',
         params => [ 'limit', 'offset' ]
     },
 
-    '/v1/playlists/{playlist_id}/tracks|POST' => {
+    {
+        path   => '/v1/playlists/{playlist_id}/items',
         info   => 'Add items to a playlist',
         type   => 'POST',
         method => 'add_items_to_playlist'
     },
 
-    '/v1/me/tracks' => {
+    {
+        path   => '/v1/playlists/{playlist_id}/followers',
+        info   => 'Unfollow (remove) a playlist',
+        type   => 'DELETE',
+        method => 'unfollow_playlist'
+    },
+
+    {
+        path   => '/v1/me/tracks',
         info   => 'Remove User\'s Saved Tracks',
         type   => 'DELETE',
         method => 'remove_user_saved_tracks'
     },
 
-    '/v1/me/tracks/contains' => {
+    {
+        path   => '/v1/me/tracks/contains',
         info   => 'Check User\'s Saved Tracks',
         type   => 'GET',
         method => 'check_users_saved_tracks'
     },
 
-    '/v1/audio-features' => {
+    {
+        path   => '/v1/audio-features',
         info   => 'Get Several Tracks\' Audio Features',
         type   => 'GET',
         method => 'get_several_tracks_audio_features'
     },
-    '/v1/audio-features/{id}' => {
+
+    {
+        path   => '/v1/audio-features/{id}',
         info   => 'Get Track\'s Audio Features',
         type   => 'GET',
         method => 'get_track_audio_features'
     },
-    '/v1/audio-analysis/{id}' => {
+
+    {
+        path   => '/v1/audio-analysis/{id}',
         info   => 'Get Track\'s Audio Analysis',
         type   => 'GET',
         method => 'get_track_audio_analysis'
     },
 
-    '/v1/recommendations' => {
+    {
+        path   => '/v1/recommendations',
         info   => 'Get Recommendations',
         type   => 'GET',
         method => 'get_recommendations',
@@ -439,181 +450,497 @@ my %api_call_options = (
         ]
     },
 
-    '/v1/me/following|GET' => {
+    {
+        path   => '/v1/me/following',
         info   => 'Get Followed Artists',
         type   => 'GET',
         method => 'get_followed_artists',
         params => [ 'type', 'after', 'limit' ]
     },
 
-    '/v1/me/following|PUT' => {
+    {
+        path   => '/v1/me/following',
         info   => 'Follow Artists or Users',
         type   => 'PUT',
         method => 'follow_artists_or_users',
         params => [ 'type', 'ids' ]
     },
 
-    '/v1/me/following|DELETE' => {
+    {
+        path   => '/v1/me/following',
         info   => 'Unfollow Artists or Users',
         type   => 'DELETE',
         method => 'unfollow_artists_or_users',
         params => [ 'type', 'ids' ]
     },
 
-    '/v1/me/following/contains' => {
+    {
+        path   => '/v1/me/following/contains',
         info   => 'Check if Current User Follows Artists or Users',
         type   => 'GET',
         method => 'check_if_user_follows_artists_or_users',
         params => [ 'type', 'ids' ]
     },
 
-    '/v1/playlists/{playlist_id}/followers/contains' => {
+    {
+        path   => '/v1/playlists/{playlist_id}/followers/contains',
         info   => 'Check if Current User Follows Playlist',
         type   => 'GET',
         method => 'check_if_user_follows_playlist',
         params => [ 'playlist_id', 'ids' ]
     },
 
-    '/v1/albums/{id}/tracks' => {
+    {
+        path   => '/v1/albums/{id}/tracks',
         info   => q{Get an album's tracks},
         type   => 'GET',
         method => 'albums_tracks'
     },
 
-    '/v1/artists/{id}' => {
+    {
+        path   => '/v1/artists/{id}',
         info   => 'Get an artist',
         type   => 'GET',
         method => 'artist'
     },
 
-    '/v1/artists?ids={ids}' => {
+    {
+        path   => '/v1/artists?ids={ids}',
         info   => 'Get several artists',
         type   => 'GET',
         method => 'artists'
     },
 
-    '/v1/artists/{id}/albums' => {
+    {
+        path   => '/v1/artists/{id}/albums',
         info   => q{Get an artist's albums},
         type   => 'GET',
         method => 'artist_albums',
         params => [ 'limit', 'offset', 'country', 'album_type' ]
     },
 
-    '/v1/artists/{id}/top-tracks?country={country}' => {
+    {
+        path   => '/v1/artists/{id}/top-tracks?country={country}',
         info   => q{Get an artist's top tracks},
         type   => 'GET',
         method => 'artist_top_tracks',
         params => ['country']
     },
 
-    '/v1/artists/{id}/related-artists' => {
-        info   => q{Get an artist's top tracks},
+    {
+        path   => '/v1/artists/{id}/related-artists',
+        info   => q{Get an artist's related artists},
         type   => 'GET',
         method => 'artist_related_artists',
-
-        # params => [ 'country' ]
     },
 
     # adding q and type to url unlike example since they are both required
-    '/v1/search?q={q}&type={type}' => {
+    {
+        path   => '/v1/search?q={q}&type={type}',
         info   => 'Search for an item',
         type   => 'GET',
         method => 'search',
         params => [ 'limit', 'offset', 'q', 'type' ]
     },
 
-    '/v1/tracks/{id}' => {
+    {
+        path   => '/v1/tracks/{id}',
         info   => 'Get a track',
         type   => 'GET',
         method => 'track'
     },
 
-    '/v1/tracks?ids={ids}' => {
+    {
+        path   => '/v1/tracks?ids={ids}',
         info   => 'Get several tracks',
         type   => 'GET',
         method => 'tracks'
     },
 
-    '/v1/users/{user_id}' => {
+    {
+        path   => '/v1/users/{user_id}',
         info   => q{Get a user's profile},
         type   => 'GET',
         method => 'user'
     },
 
-    '/v1/me' => {
+    {
+        path   => '/v1/me',
         info   => q{Get current user's profile},
         type   => 'GET',
         method => 'me'
     },
 
-    '/v1/users/{user_id}/playlists|GET' => {
+    {
+        path   => '/v1/users/{user_id}/playlists',
         info   => q{Get a list of a user's playlists},
         type   => 'GET',
         method => 'user_playlist'
     },
 
-    '/v1/users/{user_id}/playlists/{playlist_id}' => {
-        info   => 'Get a playlist',
-        type   => 'GET',
-        method => q{}
-    },
-
-    '/v1/browse/featured-playlists' => {
+    {
+        path   => '/v1/browse/featured-playlists',
         info   => 'Get a list of featured playlists',
         type   => 'GET',
         method => 'browse_featured_playlists'
     },
 
-    '/v1/browse/new-releases' => {
+    {
+        path   => '/v1/browse/new-releases',
         info   => 'Get a list of new releases',
         type   => 'GET',
         method => 'browse_new_releases'
     },
 
-    '/v1/users/{user_id}/playlists/{playlist_id}/tracks' => {
-        info   => q{Get a playlist's tracks},
-        type   => 'POST',
-        method => q{}
+    # February 2026 consolidated library endpoints.  These take Spotify
+    # URIs (spotify:track:{id}, spotify:show:{id}, ...) rather than bare
+    # ids, passed as a "uris" query parameter on every verb.
+    {
+        path   => '/v1/me/library?uris={uris}',
+        info   => 'Save Items to Library',
+        type   => 'PUT',
+        method => 'save_library_items',
+        params => ['uris']
     },
 
-    '/v1/users/{user_id}/playlists' => {
-        info   => 'Create a playlist',
-        type   => 'POST',
-        method => q{}
+    {
+        path   => '/v1/me/library?uris={uris}',
+        info   => 'Remove Items from Library',
+        type   => 'DELETE',
+        method => 'remove_library_items',
+        params => ['uris']
     },
 
-    '/v1/users/{user_id}/playlists/{playlist_id}/tracks' => {
-        info   => 'Add tracks to a playlist',
-        type   => 'POST',
-        method => q{}
-    }
+    {
+        path   => '/v1/me/library/contains?uris={uris}',
+        info   => 'Check Items in Library',
+        type   => 'GET',
+        method => 'check_library_items',
+        params => ['uris']
+    },
 );
 
-our %method_to_uri = ();
+# Methods whose endpoints were removed or consolidated by Spotify's
+# February 2026 API changes (plus the November 2024 deprecations).  The
+# methods are kept for backwards compatibility; calling one warns once
+# per process and the request is still sent (Spotify will reject it).
+my %method_deprecated = (
+    albums =>
+        'GET /v1/albums?ids= removed Feb 2026; fetch albums individually with album()',
+    artists =>
+        'GET /v1/artists?ids= removed Feb 2026; fetch artists individually with artist()',
+    tracks =>
+        'GET /v1/tracks?ids= removed Feb 2026; fetch tracks individually with track()',
+    get_several_shows =>
+        'GET /v1/shows removed Feb 2026; use get_show() per id',
+    get_several_audiobooks =>
+        'GET /v1/audiobooks removed Feb 2026; use get_audiobook() per id',
+    get_several_chapters =>
+        'GET /v1/chapters removed Feb 2026; use get_chapter() per id',
+    get_several_tracks_audio_features =>
+        'GET /v1/audio-features removed Feb 2026',
+    get_track_audio_features =>
+        'GET /v1/audio-features/{id} deprecated by Spotify (Nov 2024)',
+    get_track_audio_analysis =>
+        'GET /v1/audio-analysis/{id} deprecated by Spotify (Nov 2024)',
+    get_recommendations =>
+        'GET /v1/recommendations deprecated by Spotify (Nov 2024)',
+    get_available_genre_seeds =>
+        'GET /v1/recommendations/available-genre-seeds removed',
+    browse_featured_playlists =>
+        'GET /v1/browse/featured-playlists removed by Spotify (Nov 2024)',
+    browse_new_releases => 'GET /v1/browse/new-releases removed Feb 2026',
+    get_categories      => 'GET /v1/browse/categories removed Feb 2026',
+    get_category        => 'GET /v1/browse/categories/{id} removed Feb 2026',
+    artist_top_tracks   => 'GET /v1/artists/{id}/top-tracks removed Feb 2026',
+    artist_related_artists =>
+        'GET /v1/artists/{id}/related-artists removed by Spotify (Nov 2024)',
+    user => 'GET /v1/users/{user_id} deprecated/removed Feb 2026',
+    remove_user_saved_tracks =>
+        'DELETE /v1/me/tracks removed Feb 2026; use remove_library_items()',
+    check_users_saved_tracks =>
+        'GET /v1/me/tracks/contains removed Feb 2026; use check_library_items()',
+    save_shows_for_current_user =>
+        'PUT /v1/me/shows removed Feb 2026; use save_library_items()',
+    check_users_saved_shows =>
+        'GET /v1/me/shows/contains removed Feb 2026; use check_library_items()',
+    save_audiobooks_for_current_user =>
+        'PUT /v1/me/audiobooks removed Feb 2026; use save_library_items()',
+    remove_users_saved_audiobooks =>
+        'DELETE /v1/me/audiobooks removed Feb 2026; use remove_library_items()',
+    check_users_saved_audiobooks =>
+        'GET /v1/me/audiobooks/contains removed Feb 2026; use check_library_items()',
+    follow_artists_or_users =>
+        'PUT /v1/me/following removed Feb 2026; use save_library_items()',
+    unfollow_artists_or_users =>
+        'DELETE /v1/me/following removed Feb 2026; use remove_library_items()',
+    check_if_user_follows_artists_or_users =>
+        'GET /v1/me/following/contains removed Feb 2026; use check_library_items()',
+    check_if_user_follows_playlist =>
+        'GET /v1/playlists/{id}/followers/contains removed Feb 2026; use check_library_items()',
+);
 
-# Build %method_to_uri mapping while tolerating duplicate URI paths that
-# are distinguished by HTTP verb suffixes appended to the hash key (eg
-# "/v1/me/audiobooks|GET").  The verb portion – everything from the last
-# pipe ("|") character to the end of the string – is stripped off before
-# the mapping is stored so that the final URL remains unchanged.
+my %deprecation_warned;
 
-foreach my $key ( keys %api_call_options ) {
-    my $entry = $api_call_options{$key};
-    next if $entry->{method} eq q{};    # skip placeholders
+my %method_to_uri = ();
 
-    # Remove an optional "|VERB" suffix that we add to disambiguate
-    # duplicate paths (eg "/v1/me/audiobooks|PUT").  This preserves the
-    # original request URI while still allowing each HTTP verb to have a
-    # distinct hash key.
-    my ($path_without_suffix) = split /\|/, $key, 2;
-
-    $method_to_uri{ $entry->{method} } = $path_without_suffix;
+foreach my $entry (@api_call_options) {
+    next if $entry->{method} eq q{};
+    $method_to_uri{ $entry->{method} } = $entry->{path};
 }
 
-# Provide a small accessor so other roles can access the mapping without
-# needing direct package‑level knowledge.
-sub _method_to_uri {
-    return \%method_to_uri;
+# _build_url: construct the request URL from an attributes hashref.
+#
+# For send_get_request the URL-building logic is richer (query_full_url
+# passthrough, search substitution, extras appended as query params).  That
+# full logic stays in send_get_request.  _build_url handles the simpler
+# pattern shared by POST / PUT / DELETE.
+sub _build_url {
+    my ( $self, $attributes ) = @_;
+
+    my $url  = $self->uri_scheme() . '://' . $self->uri_hostname();
+    my $path = $method_to_uri{ $attributes->{method} };
+
+    # Params consumed by a {placeholder} in the path are removed from
+    # %unused so the request body only carries what the URL did not.
+    my %unused = %{ $attributes->{params} || {} };
+
+    if ($path) {
+        $path
+            =~ s/\{([^}]+)\}/my $v = delete $unused{$1}; defined $v ? $v : q{}/ge;
+        $url .= $path;
+    }
+
+    warn "$url\n" if $self->debug;
+    return wantarray ? ( $url, \%unused ) : $url;
+}
+
+# _send_request: shared machinery for every HTTP verb.
+#
+# Parameters:
+#   $verb        - 'get' | 'post' | 'put' | 'delete'
+#   $url         - fully-formed request URL
+#   $attributes  - original attributes hashref (used for auth flag)
+#   $body        - optional request body (undef for GET)
+sub _send_request {
+    my ( $self, $verb, $url, $attributes, $body ) = @_;
+
+    my $method = $attributes->{method} // q{};
+    if ( my $reason = $method_deprecated{$method} ) {
+        carp
+            "WWW::Spotify: $method() targets a removed/deprecated Spotify endpoint: $reason"
+            unless $deprecation_warned{$method}++;
+    }
+
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = $self->_mech;
+
+    if (   $attributes->{client_auth_required}
+        || $self->force_client_auth() != 0 ) {
+        if ( $self->current_access_token() eq q{}
+            || time() >= $self->token_expires_at() ) {
+            warn "Needed to get access token\n" if $self->debug();
+            $self->current_access_token(q{});
+            $self->get_client_credentials();
+        }
+        $mech->add_header(
+            'Authorization' => 'Bearer ' . $self->current_access_token() );
+    }
+
+    if ( defined $body ) {
+        $mech->add_header( 'Content-Type' => 'application/json' );
+        $mech->$verb( $url, Content => $body );
+    }
+    else {
+        $mech->$verb($url);
+    }
+
+    if ( $self->grab_response_header() == 1 ) {
+        $self->_set_response_headers($mech);
+    }
+
+    $self->response_status( $mech->status() );
+    $self->response_content_type( $mech->content_type() );
+
+    if ( $self->_has_custom_request_handler() ) {
+        $self->_set_custom_request_handler_result(
+            $self->custom_request_handler()->($mech) );
+    }
+
+    return $mech;
+}
+
+sub send_post_request {
+    my ( $self, $attributes ) = @_;
+
+    $self->last_error(q{});
+
+    my ( $url, $body_params ) = $self->_build_url($attributes);
+    my $body = %{$body_params} ? encode_json($body_params) : '';
+    my $mech = $self->_send_request( 'post', $url, $attributes, $body );
+
+    if (   $self->response_content_type() =~ /application\/json/i
+        && $self->response_status() != HTTP_OK ) {
+        warn "content type is ", $self->response_content_type(), "\n"
+            if $self->debug();
+        $self->last_error( "request failed, status("
+                . $self->response_status()
+                . ") examine last_result for details" );
+    }
+
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
+        die $self->last_error();
+    }
+
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
+}
+
+sub send_delete_request {
+
+    # Internal method used to send DELETE requests to the Spotify API.
+    my ( $self, $attributes ) = @_;
+
+    $self->last_error(q{});
+
+    my ( $url, $body_params ) = $self->_build_url($attributes);
+    my $body = %{$body_params} ? encode_json($body_params) : '';
+    my $mech = $self->_send_request( 'delete', $url, $attributes, $body );
+
+    if ( !is_success( $self->response_status() ) ) {
+        warn "Delete request failed with status ", $self->response_status(),
+            "\n"
+            if $self->debug();
+        $self->last_error( "Delete request failed, status("
+                . $self->response_status()
+                . ") examine last_result for details" );
+    }
+
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
+        die $self->last_error();
+    }
+
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
+}
+
+sub send_put_request {
+
+    # Internal method used to send PUT requests to the Spotify API.
+    my ( $self, $attributes ) = @_;
+
+    $self->last_error(q{});
+
+    my ( $url, $body_params ) = $self->_build_url($attributes);
+    my $body = %{$body_params} ? encode_json($body_params) : '';
+    my $mech = $self->_send_request( 'put', $url, $attributes, $body );
+
+    if ( !is_success( $self->response_status() ) ) {
+        warn "Put request failed with status ", $self->response_status(), "\n"
+            if $self->debug();
+        $self->last_error( "Put request failed, status("
+                . $self->response_status()
+                . ") examine last_result for details" );
+    }
+
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
+        die $self->last_error();
+    }
+
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
+}
+
+sub send_get_request {
+
+    # need to build the URL here
+    my ( $self, $attributes ) = @_;
+
+    my $uri_params = q{};
+
+    # reset last error
+    $self->last_error(q{});
+
+    if ( defined $attributes->{extras}
+        and ref $attributes->{extras} eq 'HASH' ) {
+        my @tmp = ();
+
+        foreach my $key ( keys %{ $attributes->{extras} } ) {
+            push @tmp, "$key=" . uri_escape( $attributes->{extras}{$key} );
+        }
+        $uri_params = join( '&', @tmp );
+    }
+
+    if ( exists $attributes->{format}
+        && $attributes->{format} =~ /json|jsonp/ ) {
+        $self->result_format( $attributes->{format} );
+        delete $attributes->{format};
+    }
+
+    my $url;
+    if ( $attributes->{method} eq 'query_full_url' ) {
+        $url = $attributes->{url};
+    }
+    else {
+        $url = $self->uri_scheme() . '://' . $self->uri_hostname();
+
+        my $path = $method_to_uri{ $attributes->{method} };
+        if ($path) {
+
+            warn "raw: $path" if $self->debug();
+
+            if ( $path =~ /search/ && $attributes->{method} eq 'search' ) {
+                $path =~ s/\{q\}/uri_escape( $attributes->{q} )/e;
+                $path =~ s/\{type\}/uri_escape( $attributes->{type} )/e;
+            }
+
+            # Generic substitution for all remaining {placeholder} tokens
+            $path =~ s/\{([^}]+)\}/$attributes->{params}{$1}/g
+                if $attributes->{params};
+
+            warn "modified: $path\n" if $self->debug();
+        }
+
+        $url .= $path;
+    }
+
+    # append "extras" as query params if present
+    if ($uri_params) {
+        my $start_with = $url =~ /\?/ ? '&' : '?';
+        $url .= $start_with . $uri_params;
+    }
+
+    warn "$url\n" if $self->debug;
+
+    my $mech = $self->_send_request( 'get', $url, $attributes, undef );
+
+    # the original code did not provide adequate built in validation
+    # of the response for an API call.
+    # Adding a new method (die_on_response_error) with a default of 0 to avoid
+    # breaking/changing existing code using older versions of this module.
+    if (   $self->response_content_type() =~ /application\/json/i
+        && $self->response_status() != HTTP_OK ) {
+        warn "content type is ", $self->response_content_type(), "\n"
+            if $self->debug();
+        $self->last_error( "request failed, status("
+                . $self->response_status()
+                . ") examine last_result for details" );
+    }
+
+    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
+        die $self->last_error();
+    }
+
+    return $self->format_results(
+        $mech->content, $mech->ct(),
+        $mech->status()
+    );
 }
 
 sub _set_response_headers {
@@ -636,27 +963,169 @@ sub format_results {
     $self->last_result($content);
 
     # FIX ME / TEST ME
-    # verify both of these work and return the *same* perl hash
+    # vefify both of these work and return the *same* perl hash
 
     # when / how should we check the status? Do we need to?
     # if so then we need to create another method that will
     # manage a Sucess vs. Fail request
 
-    require WWW::Spotify::Response;
-
-    my $resp = WWW::Spotify::Response->new(
-        raw          => $content,
-        content_type => $_[0],
-        status       => $_[1],
-    );
-
-    $self->last_response($resp);
-
     if ( $self->auto_json_decode && $self->result_format eq 'json' ) {
-        return $resp->json;
+        return decode_json $content;
     }
 
+    # results are not altered in this case and would be
+    # json instead of a perl data structure
+
     return $content;
+}
+
+sub get_oauth_authorize {
+    my $self = shift;
+
+    if ( $self->current_oath_code() ) {
+        return $self->current_oath_code();
+    }
+
+    my $grant_type = 'authorization_code';
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $client_and_secret
+        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $encoded = encode_base64($client_and_secret);
+    chomp($encoded);
+    $encoded =~ s/\n//g;
+    my $url = $self->oauth_authorize_url();
+
+    my @parts;
+
+    $parts[0] = 'response_type=code';
+    $parts[1] = 'redirect_uri=' . $self->oauth_redirect_uri;
+
+    my $params = join( '&', @parts );
+    $url = $url . '?client_id=' . $self->oauth_client_id() . "&$params";
+
+    $self->ua->get($url);
+
+    return $self->ua->content;
+}
+
+sub get_client_credentials {
+    my $self  = shift;
+    my $scope = shift;
+
+    if ( $self->current_access_token() ne q{} ) {
+        return $self->current_access_token();
+    }
+    if ( $self->oauth_client_id() eq q{} ) {
+        die "need to set the client oauth parameters\n";
+    }
+
+    my $grant_type = 'client_credentials';
+    local $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $mech = $self->_mech;
+    my $client_and_secret
+        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
+    my $encoded = encode_base64($client_and_secret);
+    my $url     = $self->oauth_token_url();
+
+    # $url .= "?grant_type=client_credentials";
+    # my $url = $self->oauth_authorize_url();
+    # grant_type=client_credentials
+    my $extra = {
+        grant_type => $grant_type
+
+            #code => 'code',
+            #redirect_uri => $self->oauth_redirect_uri
+    };
+    if ($scope) {
+        $extra->{scope} = $scope;
+    }
+
+    chomp($encoded);
+    $encoded =~ s/\n//g;
+    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
+
+    $mech->post( $url, [$extra] );
+    my $content = $mech->content();
+
+    if ( $content =~ /access_token/ ) {
+        warn "setting access token\n" if $self->debug();
+
+        my $result = decode_json $content;
+
+        if ( $result->{'access_token'} ) {
+            $self->current_access_token( $result->{'access_token'} );
+            if ( $result->{'expires_in'} ) {
+                $self->token_expires_at( time() + $result->{'expires_in'} );
+            }
+        }
+    }
+}
+
+sub authorize_url {
+    my ( $self, $args ) = @_;
+    $args ||= {};
+
+    my @parts = (
+        'client_id=' . uri_escape( $self->oauth_client_id() ),
+        'response_type=code',
+        'redirect_uri=' . uri_escape( $self->oauth_redirect_uri() ),
+    );
+    push @parts, 'scope=' . uri_escape( $args->{scope} ) if $args->{scope};
+    push @parts, 'state=' . uri_escape( $args->{state} ) if $args->{state};
+
+    return $self->oauth_authorize_url() . '?' . join '&', @parts;
+}
+
+sub _request_token {
+    my ( $self, $form ) = @_;
+
+    my $encoded = encode_base64(
+        $self->oauth_client_id() . ':' . $self->oauth_client_secret(), q{} );
+
+    my $mech = $self->_mech;
+    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
+    $mech->post( $self->oauth_token_url(), [$form] );
+
+    my $result = eval { decode_json( $mech->content() ) };
+
+    return 0 unless $result && $result->{access_token};
+
+    $self->current_access_token( $result->{access_token} );
+    $self->token_expires_at( time() + $result->{expires_in} )
+        if $result->{expires_in};
+    $self->refresh_token( $result->{refresh_token} )
+        if $result->{refresh_token};
+
+    return 1;
+}
+
+sub get_access_token {
+    my ( $self, $code ) = @_;
+
+    die "get_access_token requires an authorization code\n"
+        unless defined $code && length $code;
+
+    return $self->_request_token(
+        {
+            grant_type   => 'authorization_code',
+            code         => $code,
+            redirect_uri => $self->oauth_redirect_uri(),
+        }
+    );
+}
+
+sub refresh_access_token {
+    my $self = shift;
+
+    die "refresh_access_token requires a stored refresh token\n"
+        unless $self->refresh_token();
+
+    return $self->_request_token(
+        {
+            grant_type    => 'refresh_token',
+            refresh_token => $self->refresh_token(),
+        }
+    );
 }
 
 sub get {
@@ -732,6 +1201,21 @@ sub build_url_base {
     }
 
     return $url;
+}
+
+#- may want to move this at some point
+
+sub query_full_url {
+    my $self                 = shift;
+    my $url                  = shift;
+    my $client_auth_required = shift || 0;
+    return $self->send_get_request(
+        {
+            method               => 'query_full_url',
+            url                  => $url,
+            client_auth_required => $client_auth_required
+        }
+    );
 }
 
 #-- spotify specific methods
@@ -845,10 +1329,10 @@ sub artist_top_tracks {
         {
             method => 'artist_top_tracks',
             params => {
-                'id'      => $artist_id,
-                'country' => $country,
-            },
-            client_auth_required => 1
+                'id'                 => $artist_id,
+                'country'            => $country,
+                client_auth_required => 1
+            }
         }
     );
 
@@ -857,14 +1341,15 @@ sub artist_top_tracks {
 sub artist_related_artists {
     my $self      = shift;
     my $artist_id = shift;
+    my $country   = shift;
 
     return $self->send_get_request(
         {
             method => 'artist_related_artists',
-            params => {
-                'id' => $artist_id,
-            },
-            client_auth_required => 1
+            params => { 'id' => $artist_id }
+
+            #            'country' => $country
+            #          }
         }
     );
 
@@ -872,7 +1357,6 @@ sub artist_related_artists {
 
 sub me {
     my $self = shift;
-
     return $self->send_get_request(
         {
             method               => 'me',
@@ -882,33 +1366,17 @@ sub me {
 }
 
 sub next_result_set {
-    my $self   = shift;
-    my $result = shift;
-
-    # Parse JSON result if it's a string
-    if ( $result && !ref($result) ) {
-        $result = decode_json($result);
-    }
-
-    return unless $result                && ref($result) eq 'HASH';
-    return unless exists $result->{next} && $result->{next};
-
-    return $self->query_full_url( $result->{next}, 1 );
+    my $self = shift;
+    my $url  = $self->get('next');
+    return unless defined $url && $url ne 'null' && $url ne q{};
+    return $self->query_full_url( $url, 1 );
 }
 
 sub previous_result_set {
-    my $self   = shift;
-    my $result = shift;
-
-    # Parse JSON result if it's a string
-    if ( $result && !ref($result) ) {
-        $result = decode_json($result);
-    }
-
-    return unless $result                    && ref($result) eq 'HASH';
-    return unless exists $result->{previous} && $result->{previous};
-
-    return $self->query_full_url( $result->{previous}, 1 );
+    my $self = shift;
+    my $url  = $self->get('previous');
+    return unless defined $url && $url ne 'null' && $url ne q{};
+    return $self->query_full_url( $url, 1 );
 }
 
 sub search {
@@ -1009,9 +1477,8 @@ sub user {
     my $user_id = shift;
     return $self->send_get_request(
         {
-            method               => 'user',
-            params               => { 'user_id' => $user_id },
-            client_auth_required => 1
+            method => 'user',
+            params => { 'user_id' => $user_id }
         }
     );
 
@@ -1034,24 +1501,24 @@ sub get_playlist_items {
         {
             method               => 'get_playlist_items',
             params               => { 'playlist_id' => $playlist_id },
-            extras               => $extras,
-            client_auth_required => 1
+            client_auth_required => 1,
+            extras               => $extras
         }
     );
 }
 
 sub create_playlist {
-    my ( $self, $user_id, $name, $public, $description ) = @_;
+    my ( $self, $name, $public, $description ) = @_;
+
+    my %params = ( 'name' => $name );
+    $params{public}      = $public ? \1 : \0 if defined $public;
+    $params{description} = $description      if defined $description;
+
     return $self->send_post_request(
         {
-            method => 'create_playlist',
-            params => {
-                'user_id'     => $user_id,
-                'name'        => $name,
-                'public'      => $public,
-                'description' => $description,
-            },
-            client_auth_required => 1
+            method               => 'create_playlist',
+            client_auth_required => 1,
+            params               => \%params
         }
     );
 }
@@ -1061,23 +1528,37 @@ sub get_current_user_playlists {
     return $self->send_get_request(
         {
             method               => 'get_current_user_playlists',
-            extras               => $extras,
-            client_auth_required => 1
+            client_auth_required => 1,
+            extras               => $extras
         }
     );
 }
 
 sub add_items_to_playlist {
     my ( $self, $playlist_id, $uris, $position ) = @_;
+
+    my %params = (
+        'playlist_id' => $playlist_id,
+        'uris'        => ref $uris eq 'ARRAY' ? $uris : [$uris],
+    );
+    $params{position} = $position if defined $position;
+
     return $self->send_post_request(
         {
-            method => 'add_items_to_playlist',
-            params => {
-                'playlist_id' => $playlist_id,
-                'uris'        => $uris,
-                'position'    => $position,
-            },
-            client_auth_required => 1
+            method               => 'add_items_to_playlist',
+            client_auth_required => 1,
+            params               => \%params
+        }
+    );
+}
+
+sub unfollow_playlist {
+    my ( $self, $playlist_id ) = @_;
+    return $self->send_delete_request(
+        {
+            method               => 'unfollow_playlist',
+            client_auth_required => 1,
+            params               => { 'playlist_id' => $playlist_id }
         }
     );
 }
@@ -1091,9 +1572,8 @@ sub remove_user_saved_tracks {
 
     return $self->send_delete_request(
         {
-            method               => 'remove_user_saved_tracks',
-            params               => { 'ids' => $ids },
-            client_auth_required => 1
+            method => 'remove_user_saved_tracks',
+            params => { 'ids' => $ids }
         }
     );
 }
@@ -1256,6 +1736,57 @@ sub check_if_user_follows_playlist {
                 playlist_id => $playlist_id,
                 ids         => $id_list
             },
+            client_auth_required => 1
+        }
+    );
+}
+
+# Spotify URIs contain ':' so they must be escaped before being placed
+# in the uris= query parameter.  Commas separating multiple URIs are
+# escaped too (%2C), which the API accepts.
+sub _uris_param {
+    my $uris = shift;
+    $uris = join( ',', @{$uris} ) if ref $uris eq 'ARRAY';
+    return uri_escape($uris);
+}
+
+sub save_library_items {
+    my ( $self, $uris ) = @_;
+
+    die "Spotify URIs are required" unless $uris;
+
+    return $self->send_put_request(
+        {
+            method               => 'save_library_items',
+            params               => { uris => _uris_param($uris) },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub remove_library_items {
+    my ( $self, $uris ) = @_;
+
+    die "Spotify URIs are required" unless $uris;
+
+    return $self->send_delete_request(
+        {
+            method               => 'remove_library_items',
+            params               => { uris => _uris_param($uris) },
+            client_auth_required => 1
+        }
+    );
+}
+
+sub check_library_items {
+    my ( $self, $uris ) = @_;
+
+    die "Spotify URIs are required" unless $uris;
+
+    return $self->send_get_request(
+        {
+            method               => 'check_library_items',
+            params               => { uris => _uris_param($uris) },
             client_auth_required => 1
         }
     );
@@ -1647,22 +2178,6 @@ version 0.013
 
 Wrapper for the Spotify Web API.
 
-Since version 0.014 the implementation has been modularised:
-
-    WWW::Spotify             – public wrapper (this module)
-    WWW::Spotify::Client     – role with authentication / OAuth helpers
-    WWW::Spotify::Endpoint   – role with low‑level HTTP verbs
-    WWW::Spotify::Response   – object wrapper around an HTTP response
-
-Splitting the code into roles and small classes keeps the public API
-completely intact while making the internals much easier to test and
-extend.  If you were subclassing C<WWW::Spotify> directly nothing
-changes – the roles are composed automatically.
-
-The attribute C<current_oath_code> was misspelled; it is now
-C<current_oauth_code>.  A shim accessor is retained for backwards
-compatibility.
-
 https://developer.spotify.com/web-api/
 
 Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer is
@@ -1796,8 +2311,11 @@ equivalent to /v1/search?type=album (etc)
     $spotify->search(
                         'tania bowra' ,
                         'artist' ,
-                        { limit => 15 , offset => 0 }
+                        { limit => 10 , offset => 0 }
     );
+
+Note: as of the February 2026 API changes the maximum C<limit> is 10
+(previously 50); use C<offset> to paginate.
 
 =head2 track
 
@@ -1851,15 +2369,18 @@ This method retrieves a playlist owned by a Spotify user. The playlist must be p
 
 =head2 get_playlist_items
 
-equivalent to /v1/playlists/{playlist_id}/tracks
+equivalent to /v1/playlists/{playlist_id}/items (renamed from /tracks in the
+February 2026 API changes)
 
     $spotify->get_playlist_items('37i9dQZF1DXcBWIGoYBM5M', { limit => 10, offset => 0 });
 
 =head2 create_playlist
 
-equivalent to /v1/users/{user_id}/playlists
+equivalent to POST /v1/me/playlists (replaced /v1/users/{user_id}/playlists
+in the February 2026 API changes) - creates a playlist for the
+authenticated user
 
-    $spotify->create_playlist('user_id', 'My New Playlist', 1, 'A description of my playlist');
+    $spotify->create_playlist('My New Playlist', 1, 'A description of my playlist');
 
 =head2 get_current_user_playlists
 
@@ -1869,9 +2390,18 @@ equivalent to /v1/me/playlists
 
 =head2 add_items_to_playlist
 
-equivalent to /v1/playlists/{playlist_id}/tracks
+equivalent to /v1/playlists/{playlist_id}/items (renamed from /tracks in the
+February 2026 API changes)
 
     $spotify->add_items_to_playlist('playlist_id', ['spotify:track:4iV5W9uYEdYUVa79Axb7Rh', 'spotify:track:1301WleyT98MSxVHPZCA6M'], 0);
+
+=head2 unfollow_playlist
+
+equivalent to DELETE /v1/playlists/{playlist_id}/followers - removes the
+playlist from the authenticated user's library (Spotify has no hard
+playlist delete)
+
+    $spotify->unfollow_playlist('playlist_id');
 
 =head2 remove_user_saved_tracks
 
@@ -1977,6 +2507,63 @@ equivalent to GET /v1/playlists/{playlist_id}/followers/contains
 or
 
     $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', ['jmperezperez']);
+
+=head2 save_library_items
+
+equivalent to PUT /v1/me/library (February 2026 consolidated library
+endpoint; replaces the removed PUT /v1/me/tracks, /v1/me/albums,
+/v1/me/episodes, /v1/me/shows, /v1/me/audiobooks, /v1/me/following and
+/v1/playlists/{id}/followers endpoints)
+
+Takes Spotify URIs (not bare ids), as a comma-separated string or an
+array reference.  Maximum 40 URIs.
+
+    $spotify->save_library_items( [ 'spotify:track:7a3LWj5xSFhFRYmztS8wgK',
+                                    'spotify:album:4aawyAB9vmqN3uQ7FjRGTy' ] );
+
+=head2 remove_library_items
+
+equivalent to DELETE /v1/me/library (February 2026 consolidated library
+endpoint; replaces the removed per-type DELETE endpoints)
+
+    $spotify->remove_library_items( 'spotify:track:7a3LWj5xSFhFRYmztS8wgK' );
+
+=head2 check_library_items
+
+equivalent to GET /v1/me/library/contains (February 2026 consolidated
+library endpoint; replaces the removed per-type */contains endpoints)
+
+    $spotify->check_library_items( [ 'spotify:track:7a3LWj5xSFhFRYmztS8wgK' ] );
+
+=head2 DEPRECATED METHODS
+
+Spotify's November 2024 and February 2026 API changes removed or
+deprecated a number of endpoints.  The corresponding methods are kept
+for backwards compatibility but warn once per process when called, and
+Spotify will reject the request:
+
+batch fetch (removed - fetch individually instead): C<albums>, C<artists>,
+C<tracks>, C<get_several_shows>, C<get_several_audiobooks>,
+C<get_several_chapters>, C<get_several_tracks_audio_features>
+
+browse/artist (removed): C<browse_featured_playlists>,
+C<browse_new_releases>, C<get_categories>, C<get_category>,
+C<artist_top_tracks>, C<artist_related_artists>
+
+audio/recommendations (deprecated): C<get_track_audio_features>,
+C<get_track_audio_analysis>, C<get_recommendations>,
+C<get_available_genre_seeds>
+
+library (consolidated into /v1/me/library - use C<save_library_items>,
+C<remove_library_items>, C<check_library_items>):
+C<remove_user_saved_tracks>, C<check_users_saved_tracks>,
+C<save_shows_for_current_user>, C<check_users_saved_shows>,
+C<save_audiobooks_for_current_user>, C<remove_users_saved_audiobooks>,
+C<check_users_saved_audiobooks>, C<follow_artists_or_users>,
+C<unfollow_artists_or_users>, C<check_if_user_follows_artists_or_users>,
+C<check_if_user_follows_playlist>
+
+other: C<user> (GET /v1/users/{user_id} deprecated/removed)
 
 =head2 get_audiobook
 
@@ -2168,6 +2755,43 @@ needed for requests that require OAuth, see Spotify API documentation for more i
     $spotify->oauth_client_secret('2xfjijkcjidjkfdi');
 
 Can also be set via environment variable, SPOTIFY_CLIENT_SECRET
+
+=head2 authorize_url
+
+builds the URL to send a user to for the OAuth authorization-code flow.
+Uses C<oauth_client_id> and C<oauth_redirect_uri>; C<scope> and C<state>
+are optional
+
+    my $url = $spotify->authorize_url({
+        scope => 'user-read-private playlist-modify-private',
+        state => $random_string,
+    });
+
+Open the URL in a browser; after login Spotify redirects to
+C<oauth_redirect_uri> with a C<code> query parameter.
+
+=head2 get_access_token
+
+exchanges an authorization code (from the C<authorize_url> redirect) for
+a user access token. On success stores C<current_access_token>,
+C<refresh_token>, and C<token_expires_at>, and returns true
+
+    $spotify->get_access_token($code);
+
+=head2 refresh_access_token
+
+fetches a new access token using the stored C<refresh_token> (set by
+C<get_access_token>). Dies if no refresh token is stored; returns true
+on success
+
+    $spotify->refresh_access_token();
+
+=head2 refresh_token
+
+the OAuth refresh token, set automatically by C<get_access_token>. Can
+be set manually to restore a persisted session
+
+    $spotify->refresh_token($saved_refresh_token);
 
 =head2 response_status
 

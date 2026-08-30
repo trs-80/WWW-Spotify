@@ -4,7 +4,7 @@ WWW::Spotify - Spotify Web API Wrapper
 
 # VERSION
 
-version 0.013
+version 0.015
 
 # SYNOPSIS
 
@@ -81,22 +81,6 @@ version 0.013
 # DESCRIPTION
 
 Wrapper for the Spotify Web API.
-
-Since version 0.014 the implementation has been modularised:
-
-    WWW::Spotify             – public wrapper (this module)
-    WWW::Spotify::Client     – role with authentication / OAuth helpers
-    WWW::Spotify::Endpoint   – role with low‑level HTTP verbs
-    WWW::Spotify::Response   – object wrapper around an HTTP response
-
-Splitting the code into roles and small classes keeps the public API
-completely intact while making the internals much easier to test and
-extend.  If you were subclassing `WWW::Spotify` directly nothing
-changes – the roles are composed automatically.
-
-The attribute `current_oath_code` was misspelled; it is now
-`current_oauth_code`.  A shim accessor is retained for backwards
-compatibility.
 
 https://developer.spotify.com/web-api/
 
@@ -239,8 +223,11 @@ equivalent to /v1/search?type=album (etc)
     $spotify->search(
                         'tania bowra' ,
                         'artist' ,
-                        { limit => 15 , offset => 0 }
+                        { limit => 10 , offset => 0 }
     );
+
+Note: as of the February 2026 API changes the maximum `limit` is 10
+(previously 50); use `offset` to paginate.
 
 ## track
 
@@ -294,15 +281,18 @@ This method retrieves a playlist owned by a Spotify user. The playlist must be p
 
 ## get\_playlist\_items
 
-equivalent to /v1/playlists/{playlist\_id}/tracks
+equivalent to /v1/playlists/{playlist\_id}/items (renamed from /tracks in the
+February 2026 API changes)
 
     $spotify->get_playlist_items('37i9dQZF1DXcBWIGoYBM5M', { limit => 10, offset => 0 });
 
 ## create\_playlist
 
-equivalent to /v1/users/{user\_id}/playlists
+equivalent to POST /v1/me/playlists (replaced /v1/users/{user\_id}/playlists
+in the February 2026 API changes) - creates a playlist for the
+authenticated user
 
-    $spotify->create_playlist('user_id', 'My New Playlist', 1, 'A description of my playlist');
+    $spotify->create_playlist('My New Playlist', 1, 'A description of my playlist');
 
 ## get\_current\_user\_playlists
 
@@ -312,9 +302,18 @@ equivalent to /v1/me/playlists
 
 ## add\_items\_to\_playlist
 
-equivalent to /v1/playlists/{playlist\_id}/tracks
+equivalent to /v1/playlists/{playlist\_id}/items (renamed from /tracks in the
+February 2026 API changes)
 
     $spotify->add_items_to_playlist('playlist_id', ['spotify:track:4iV5W9uYEdYUVa79Axb7Rh', 'spotify:track:1301WleyT98MSxVHPZCA6M'], 0);
+
+## unfollow\_playlist
+
+equivalent to DELETE /v1/playlists/{playlist\_id}/followers - removes the
+playlist from the authenticated user's library (Spotify has no hard
+playlist delete)
+
+    $spotify->unfollow_playlist('playlist_id');
 
 ## remove\_user\_saved\_tracks
 
@@ -420,6 +419,63 @@ equivalent to GET /v1/playlists/{playlist\_id}/followers/contains
 or
 
     $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', ['jmperezperez']);
+
+## save\_library\_items
+
+equivalent to PUT /v1/me/library (February 2026 consolidated library
+endpoint; replaces the removed PUT /v1/me/tracks, /v1/me/albums,
+/v1/me/episodes, /v1/me/shows, /v1/me/audiobooks, /v1/me/following and
+/v1/playlists/{id}/followers endpoints)
+
+Takes Spotify URIs (not bare ids), as a comma-separated string or an
+array reference.  Maximum 40 URIs.
+
+    $spotify->save_library_items( [ 'spotify:track:7a3LWj5xSFhFRYmztS8wgK',
+                                    'spotify:album:4aawyAB9vmqN3uQ7FjRGTy' ] );
+
+## remove\_library\_items
+
+equivalent to DELETE /v1/me/library (February 2026 consolidated library
+endpoint; replaces the removed per-type DELETE endpoints)
+
+    $spotify->remove_library_items( 'spotify:track:7a3LWj5xSFhFRYmztS8wgK' );
+
+## check\_library\_items
+
+equivalent to GET /v1/me/library/contains (February 2026 consolidated
+library endpoint; replaces the removed per-type \*/contains endpoints)
+
+    $spotify->check_library_items( [ 'spotify:track:7a3LWj5xSFhFRYmztS8wgK' ] );
+
+## DEPRECATED METHODS
+
+Spotify's November 2024 and February 2026 API changes removed or
+deprecated a number of endpoints.  The corresponding methods are kept
+for backwards compatibility but warn once per process when called, and
+Spotify will reject the request:
+
+batch fetch (removed - fetch individually instead): `albums`, `artists`,
+`tracks`, `get_several_shows`, `get_several_audiobooks`,
+`get_several_chapters`, `get_several_tracks_audio_features`
+
+browse/artist (removed): `browse_featured_playlists`,
+`browse_new_releases`, `get_categories`, `get_category`,
+`artist_top_tracks`, `artist_related_artists`
+
+audio/recommendations (deprecated): `get_track_audio_features`,
+`get_track_audio_analysis`, `get_recommendations`,
+`get_available_genre_seeds`
+
+library (consolidated into /v1/me/library - use `save_library_items`,
+`remove_library_items`, `check_library_items`):
+`remove_user_saved_tracks`, `check_users_saved_tracks`,
+`save_shows_for_current_user`, `check_users_saved_shows`,
+`save_audiobooks_for_current_user`, `remove_users_saved_audiobooks`,
+`check_users_saved_audiobooks`, `follow_artists_or_users`,
+`unfollow_artists_or_users`, `check_if_user_follows_artists_or_users`,
+`check_if_user_follows_playlist`
+
+other: `user` (GET /v1/users/{user\_id} deprecated/removed)
 
 ## get\_audiobook
 
@@ -611,6 +667,43 @@ needed for requests that require OAuth, see Spotify API documentation for more i
     $spotify->oauth_client_secret('2xfjijkcjidjkfdi');
 
 Can also be set via environment variable, SPOTIFY\_CLIENT\_SECRET
+
+## authorize\_url
+
+builds the URL to send a user to for the OAuth authorization-code flow.
+Uses `oauth_client_id` and `oauth_redirect_uri`; `scope` and `state`
+are optional
+
+    my $url = $spotify->authorize_url({
+        scope => 'user-read-private playlist-modify-private',
+        state => $random_string,
+    });
+
+Open the URL in a browser; after login Spotify redirects to
+`oauth_redirect_uri` with a `code` query parameter.
+
+## get\_access\_token
+
+exchanges an authorization code (from the `authorize_url` redirect) for
+a user access token. On success stores `current_access_token`,
+`refresh_token`, and `token_expires_at`, and returns true
+
+    $spotify->get_access_token($code);
+
+## refresh\_access\_token
+
+fetches a new access token using the stored `refresh_token` (set by
+`get_access_token`). Dies if no refresh token is stored; returns true
+on success
+
+    $spotify->refresh_access_token();
+
+## refresh\_token
+
+the OAuth refresh token, set automatically by `get_access_token`. Can
+be set manually to restore a persisted session
+
+    $spotify->refresh_token($saved_refresh_token);
 
 ## response\_status
 

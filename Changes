@@ -1,3 +1,43 @@
+{{$NEXT}}
+
+[BREAKING CHANGES]
+- create_playlist() drops the user_id argument; it now takes
+  ($name, $public, $description) and posts to /v1/me/playlists
+  (the old /v1/users/{user_id}/playlists endpoint returns 403)
+- get_access_token() now takes an authorization code and returns
+  true/false, storing the tokens on the object (it previously posted
+  the literal string 'code' and could never succeed)
+
+[NEW FEATURES]
+- Working OAuth authorization-code flow: authorize_url() builds the
+  browser login URL, get_access_token() exchanges the code,
+  refresh_access_token() renews via the stored refresh_token attribute
+- unfollow_playlist() - DELETE /v1/playlists/{id}/followers
+
+[BUG FIXES]
+- User playlist methods send the Authorization header even with
+  force_client_auth disabled (previously 401 on every call)
+- add_items_to_playlist() sends uris as a JSON array as the API
+  requires; a bare string or arrayref is accepted
+- search terms and extra query parameters are URI-escaped
+- Endpoint migrations for the Spotify February 2026 API changes,
+  including playlist /tracks -> /items and consolidated
+  /v1/me/library endpoints; removed endpoints warn once per method
+
+[OTHER]
+- Reverted the 0.014 split into WWW::Spotify::Client, ::Endpoint, and
+  ::Response; the module is a single file again with the request
+  machinery consolidated into shared _send_request/_build_url helpers.
+  0.014's fixes (SSL verification bypass removal, URI encoding,
+  client_auth_required placement) are preserved in this line
+
+[TESTING]
+- Mocked offline test suites for request building, the OAuth flow, and
+  catalog methods (no credentials needed)
+- Developer-only interactive live test (xt/author/live-user.t) that
+  performs a real browser OAuth login and exercises user endpoints;
+  skipped everywhere unless SPOTIFY_INTERACTIVE_TESTS=1
+
 0.014     2025-01-18
 - Refactored module into smaller focused units (Client, Endpoint, Response roles)
 - Added explicit use strict/warnings/5.010 to all modules
