@@ -4,12 +4,14 @@ WWW::Spotify - Spotify Web API Wrapper
 
 # VERSION
 
-version 0.017
+version 1.000
 
 # SYNOPSIS
 
     use WWW::Spotify ();
 
+    # client id and secret default to $ENV{SPOTIFY_CLIENT_ID} and
+    # $ENV{SPOTIFY_CLIENT_SECRET}; every request sends a bearer token
     my $spotify = WWW::Spotify->new();
 
     my $result;
@@ -18,8 +20,6 @@ version 0.017
 
     # $result is a json structure, you can operate on it directly
     # or you can use the "get" method see below
-
-    $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
 
     $result = $spotify->albums_tracks( '6akEvsycLGftJxYudPjmqK',
     {
@@ -31,10 +31,6 @@ version 0.017
 
     $result = $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
 
-    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
-
-    $result = $spotify->artists( $artists_multiple );
-
     $result = $spotify->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
                         { album_type => 'single',
                           # country => 'US',
@@ -44,39 +40,32 @@ version 0.017
 
     $result = $spotify->track( '0eGsygTp906u18L0Oimnem' );
 
-    $result = $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
-
-    $result = $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
-                                            'SE' # country
-                                            );
-
     $result = $spotify->search(
                         'tania bowra' ,
                         'artist' ,
                         { limit => 15 , offset => 0 }
     );
 
-    $result = $spotify->user( 'glennpmcdonald' );
+    my $names = $spotify->get('artists.items[*].name');
 
-    # public play interaction example
-    # NEED TO SET YOUR o_auth client_id and secret for these to work
+    # $names is an arrayref of every artist name in the search result
 
-    $spotify->browse_featured_playlists( country => 'US' );
+    # user-authorized (OAuth authorization code) flow: send the user to
+    # authorize_url, exchange the returned code, then call /v1/me endpoints
 
-    my $link = $spotify->get('playlists.items[*].href');
+    my $url = $spotify->authorize_url( { scope => 'playlist-read-private' } );
+    my $code = 'CODE';    # the ?code= value Spotify appends to the redirect
+    $spotify->get_access_token($code);
 
-    # $link is an arrayfef of the all the playlist urls
+    $result = $spotify->get_current_user_playlists();
+
+    my $link = $spotify->get('items[*].href');
 
     foreach my $playlist (@{$link}) {
-        # make sure the links look valid
-        next if $playlist !~ /playlists/;
-        $spotify->query_full_url($playlist,1);
+        $spotify->query_full_url($playlist);
         my $pl_name = $spotify->get('name');
-        my $tracks  = $spotify->get('tracks.items[*].track.id');
-        foreach my $track (@{$tracks}) {
-                print "$track\n";
-            }
-        }
+        print "$pl_name\n";
+    }
 
 # DESCRIPTION
 
@@ -88,30 +77,47 @@ Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer i
 very good and provides the exact path of the item within the JSON in the lower left
 of the screen as you mouse over an element.
 
-# NAME
+# UPGRADING FROM 0.017 OR EARLIER
 
-WWW::Spotify - Spotify Web API Wrapper
+Version 1.000 is a breaking release.  Besides removing the methods for
+endpoints Spotify deleted in November 2024 and February 2026 (the full
+list with replacements is in the Changes file), three things changed
+that affect code calling the endpoints that survived:
 
-# VERSION
+- force\_client\_auth, result\_format, get\_oauth\_authorize
 
-version 0.017
+    Removed.  Every request now sends a bearer token, so there is nothing
+    to force.  Passing `force_client_auth` to `new()` is silently ignored
+    by Moo; calling it as a method dies.  Use ["authorize\_url"](#authorize_url) instead of
+    `get_oauth_authorize`.
+
+- custom\_request\_handler receives an HTTP::Response
+
+    The callback used to get the WWW::Mechanize object.  It now gets the
+    [HTTP::Response](https://metacpan.org/pod/HTTP%3A%3AResponse), so `$m->status()` becomes `$res->code`
+    and `$m->content()` becomes `$res->decoded_content`.
+
+- last\_result holds UTF-8 bytes
+
+    It was previously a character string.  Decode it with
+    ["decode\_json" in JSON::MaybeXS](https://metacpan.org/pod/JSON%3A%3AMaybeXS#decode_json) (or set ["auto\_json\_decode"](#auto_json_decode)) rather than
+    printing it to a `:utf8` handle.
 
 # CONSTRUCTOR ARGS
 
 ## ua
 
 You may provide your own user agent object to the constructor.  This should be
-a [LWP:UserAgent](LWP:UserAgent) or a subclass of it, like [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize). If you are
-using [WWW::Mechanize](https://metacpan.org/pod/WWW%3A%3AMechanize), you may want to set autocheck off.  To get extra
-debugging information, you can do something like this:
+a [LWP::UserAgent](https://metacpan.org/pod/LWP%3A%3AUserAgent) or a subclass of it.  To get extra debugging
+information, you can do something like this:
 
     use LWP::ConsoleLogger::Easy qw( debug_ua );
-    use WWW::Mechanize ();
+    use LWP::UserAgent ();
     use WWW::Spotify ();
 
-    my $mech = WWW::Mechanize->new( autocheck => 0 );
-    debug_ua( $mech );
-    my $spotify = WWW::Spotify->new( ua => $mech )
+    my $ua = LWP::UserAgent->new;
+    debug_ua( $ua );
+    my $spotify = WWW::Spotify->new( ua => $ua )
 
 # METHODS
 
@@ -151,18 +157,6 @@ equivalent to /v1/albums/{id}
 
 used album vs albums since it is a singular request
 
-## albums
-
-equivalent to /v1/albums?ids={ids}
-
-    $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
-
-or
-
-    $spotify->albums( [ '41MnTivkwTO3UUJ8DrqEJJ',
-                        '6JWc4iAiJ9FjyK0B59ABb4',
-                        '6UXCm6bOO4gFlDQZV5yL37' ] );
-
 ## albums\_tracks
 
 equivalent to /v1/albums/{id}/tracks
@@ -183,14 +177,6 @@ equivalent to /v1/artists/{id}
 
 used artist vs artists since it is a singular request and avoids collision with "artists" method
 
-## artists
-
-equivalent to /v1/artists?ids={ids}
-
-    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
-
-    $spotify->artists( $artists_multiple );
-
 ## artist\_albums
 
 equivalent to /v1/artists/{id}/albums
@@ -202,23 +188,12 @@ equivalent to /v1/artists/{id}/albums
                           offset  => 0
                         }  );
 
-## artist\_top\_tracks
-
-equivalent to /v1/artists/{id}/top-tracks
-
-    $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
-                                 'SE' # country
-                                            );
-
-## artist\_related\_artists
-
-equivalent to /v1/artists/{id}/related-artists
-
-    $spotify->artist_related_artists( '43ZHCT0cAZBISjO8DG9PnE' );
-
 ## search
 
 equivalent to /v1/search?type=album (etc)
+
+The query and any extras are UTF-8 encoded before escaping, so pass
+character strings (decoded text), not UTF-8 bytes.
 
     $spotify->search(
                         'tania bowra' ,
@@ -234,42 +209,6 @@ Note: as of the February 2026 API changes the maximum `limit` is 10
 equivalent to /v1/tracks/{id}
 
     $spotify->track( '0eGsygTp906u18L0Oimnem' );
-
-## tracks
-
-equivalent to /v1/tracks?ids={ids}
-
-    $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
-
-## browse\_featured\_playlists
-
-equivalent to /v1/browse/featured-playlists
-
-    $spotify->browse_featured_playlists();
-
-requires OAuth
-
-## browse\_new\_releases
-
-equivalent to /v1/browse/new-releases
-
-requires OAuth
-
-    $spotify->browse_new_releases
-
-## force\_client\_auth
-
-Boolean
-
-will pass authentication (OAuth) on all requests when set
-
-    $spotify->force_client_auth(1);
-
-## user
-
-equivalent to /v1/users/{user\_id}
-
-    $spotify->user('glennpmcdonald');
 
 ## get\_playlist
 
@@ -315,60 +254,6 @@ playlist delete)
 
     $spotify->unfollow_playlist('playlist_id');
 
-## remove\_user\_saved\_tracks
-
-equivalent to /v1/me/tracks
-
-    $spotify->remove_user_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
-
-## check\_users\_saved\_tracks
-
-equivalent to /v1/me/tracks/contains
-
-    $spotify->check_users_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
-
-## check\_users\_saved\_shows
-
-equivalent to GET /v1/me/shows/contains
-
-    $spotify->check_users_saved_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
-
-or
-
-    $spotify->check_users_saved_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
-
-This method checks if one or more shows are already saved in the current Spotify user's library.
-
-## get\_several\_tracks\_audio\_features
-
-equivalent to /v1/audio-features
-
-    $spotify->get_several_tracks_audio_features(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
-
-## get\_track\_audio\_features
-
-equivalent to /v1/audio-features/{id}
-
-    $spotify->get_track_audio_features('4iV5W9uYEdYUVa79Axb7Rh');
-
-## get\_track\_audio\_analysis
-
-equivalent to /v1/audio-analysis/{id}
-
-    $spotify->get_track_audio_analysis('4iV5W9uYEdYUVa79Axb7Rh');
-
-## get\_recommendations
-
-equivalent to /v1/recommendations
-
-    $spotify->get_recommendations(
-        seed_artists => '4NHQUGzhtTLFvgF5SZesLK',
-        seed_genres => 'classical,country',
-        seed_tracks => '0c6xIDDpzE81m2q797ordA',
-        limit => 10,
-        market => 'ES'
-    );
-
 ## get\_followed\_artists
 
 equivalent to /v1/me/following
@@ -379,46 +264,6 @@ equivalent to /v1/me/following
     );
 
 Note: This method always sets the 'type' parameter to 'artist' as it's the only supported value.
-
-## follow\_artists\_or\_users
-
-equivalent to PUT /v1/me/following
-
-    $spotify->follow_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
-
-or
-
-    $spotify->follow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
-
-## unfollow\_artists\_or\_users
-
-equivalent to DELETE /v1/me/following
-
-    $spotify->unfollow_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
-
-or
-
-    $spotify->unfollow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
-
-## check\_if\_user\_follows\_artists\_or\_users
-
-equivalent to GET /v1/me/following/contains
-
-    $spotify->check_if_user_follows_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
-
-or
-
-    $spotify->check_if_user_follows_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
-
-## check\_if\_user\_follows\_playlist
-
-equivalent to GET /v1/playlists/{playlist\_id}/followers/contains
-
-    $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', 'jmperezperez');
-
-or
-
-    $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', ['jmperezperez']);
 
 ## save\_library\_items
 
@@ -447,36 +292,6 @@ library endpoint; replaces the removed per-type \*/contains endpoints)
 
     $spotify->check_library_items( [ 'spotify:track:7a3LWj5xSFhFRYmztS8wgK' ] );
 
-## DEPRECATED METHODS
-
-Spotify's November 2024 and February 2026 API changes removed or
-deprecated a number of endpoints.  The corresponding methods are kept
-for backwards compatibility but warn once per process when called, and
-Spotify will reject the request:
-
-batch fetch (removed - fetch individually instead): `albums`, `artists`,
-`tracks`, `get_several_shows`, `get_several_audiobooks`,
-`get_several_chapters`, `get_several_tracks_audio_features`
-
-browse/artist (removed): `browse_featured_playlists`,
-`browse_new_releases`, `get_categories`, `get_category`,
-`artist_top_tracks`, `artist_related_artists`
-
-audio/recommendations (deprecated): `get_track_audio_features`,
-`get_track_audio_analysis`, `get_recommendations`,
-`get_available_genre_seeds`
-
-library (consolidated into /v1/me/library - use `save_library_items`,
-`remove_library_items`, `check_library_items`):
-`remove_user_saved_tracks`, `check_users_saved_tracks`,
-`save_shows_for_current_user`, `check_users_saved_shows`,
-`save_audiobooks_for_current_user`, `remove_users_saved_audiobooks`,
-`check_users_saved_audiobooks`, `follow_artists_or_users`,
-`unfollow_artists_or_users`, `check_if_user_follows_artists_or_users`,
-`check_if_user_follows_playlist`
-
-other: `user` (GET /v1/users/{user\_id} deprecated/removed)
-
 ## get\_audiobook
 
 equivalent to GET /v1/audiobooks/{id}
@@ -492,26 +307,6 @@ or with market parameter:
 equivalent to GET /v1/me/audiobooks
 
     $spotify->get_users_saved_audiobooks(20, 0);
-
-## remove\_users\_saved\_audiobooks
-
-equivalent to DELETE /v1/me/audiobooks
-
-    $spotify->remove_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->remove_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
-
-This method removes one or more audiobooks from the current user's library.
-
-## get\_available\_genre\_seeds
-
-equivalent to GET /v1/recommendations/available-genre-seeds
-
-    $spotify->get_available_genre_seeds();
-
-This method retrieves a list of available genres seed parameter values for recommendations.
 
 ## get\_available\_markets
 
@@ -529,18 +324,6 @@ equivalent to GET /v1/shows/{id}
 
 This method retrieves Spotify catalog information for a single show identified by its unique Spotify ID.
 
-## get\_several\_shows
-
-equivalent to GET /v1/shows
-
-    $spotify->get_several_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ'], 'US');
-
-or
-
-    $spotify->get_several_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ', 'US');
-
-This method retrieves Spotify catalog information for several shows based on their Spotify IDs.
-
 ## get\_show\_episodes
 
 equivalent to GET /v1/shows/{id}/episodes
@@ -557,18 +340,6 @@ equivalent to GET /v1/audiobooks/{id}/chapters
 
 This method retrieves the chapters of an audiobook.
 
-## get\_several\_audiobooks
-
-equivalent to GET /v1/audiobooks
-
-    $spotify->get_several_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ'], 'US');
-
-or
-
-    $spotify->get_several_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ', 'US');
-
-This method retrieves multiple audiobooks based on their Spotify IDs.
-
 ## send\_delete\_request
 
 Internal method used to send DELETE requests to the Spotify API.
@@ -576,16 +347,6 @@ Internal method used to send DELETE requests to the Spotify API.
 ## send\_put\_request
 
 Internal method used to send PUT requests to the Spotify API.
-
-## check\_users\_saved\_audiobooks
-
-equivalent to GET /v1/me/audiobooks/contains
-
-    $spotify->check_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->check_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
 
 ## get\_users\_saved\_shows
 
@@ -595,62 +356,11 @@ equivalent to GET /v1/me/shows
 
 This method retrieves a list of shows saved in the current Spotify user's library. Optional parameters can be used to limit the number of shows returned.
 
-## save\_shows\_for\_current\_user
-
-equivalent to PUT /v1/me/shows
-
-    $spotify->save_shows_for_current_user(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
-
-or
-
-    $spotify->save_shows_for_current_user('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
-
-This method saves one or more shows to the current user's library.
-
-## get\_categories
-
-equivalent to GET /v1/browse/categories
-
-    $spotify->get_categories(
-        country => 'US',
-        locale => 'en_US',
-        limit => 20,
-        offset => 0
-    );
-
-## get\_category
-
-equivalent to GET /v1/browse/categories/{category\_id}
-
-    $spotify->get_category('dinner', locale => 'en_US');
-
 ## get\_chapter
 
 equivalent to GET /v1/chapters/{id}
 
     $spotify->get_chapter('0D5wENdkdwbqlrHoaJ9g29', market => 'US');
-
-## get\_several\_chapters
-
-equivalent to GET /v1/chapters
-
-    $spotify->get_several_chapters(['0IsXVP0JmcB2adSE338GkK', '3ZXb8FKZGU0EHALYX6uCzU', '0D5wENdkdwbqlrHoaJ9g29'], market => 'US');
-
-or
-
-    $spotify->get_several_chapters('0IsXVP0JmcB2adSE338GkK,3ZXb8FKZGU0EHALYX6uCzU,0D5wENdkdwbqlrHoaJ9g29', market => 'US');
-
-## save\_audiobooks\_for\_current\_user
-
-equivalent to PUT /v1/me/audiobooks
-
-    $spotify->save_audiobooks_for_current_user(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->save_audiobooks_for_current_user('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
-
-This method saves one or more audiobooks to the current user's library.
 
 ## oauth\_client\_id
 
@@ -722,10 +432,10 @@ returns the response type for the last request made, helpful to verify JSON
 pass a callback subroutine to this method that will be run at the end of the
 request prior to die\_on\_response\_error, if enabled
 
-    # $m is the WWW::Mechanize object
+    # $res is the HTTP::Response object
     $spotify->custom_request_handler(
-        sub { my $m = shift;
-            if ($m->status() == 401) {
+        sub { my $res = shift;
+            if ($res->code == 401) {
                 return 1;
             }
         }

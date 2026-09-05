@@ -2,17 +2,15 @@ package WWW::Spotify;
 
 use Moo 2.002004;
 
-our $VERSION = '0.018';
+our $VERSION = '1.000';
 
-use Carp              qw( carp );
-use Data::Dumper      qw( Dumper );
-use IO::CaptureOutput qw( capture );
-use JSON::Path        ();
-use JSON::MaybeXS     qw( decode_json encode_json );
-use MIME::Base64      qw( encode_base64 );
-use Types::Standard   qw( Bool InstanceOf Int Str CodeRef );
-use HTTP::Status      qw( HTTP_OK is_success );
-use URI::Escape       qw( uri_escape uri_escape_utf8 );
+use JSON::Path      ();
+use JSON::MaybeXS   qw( decode_json encode_json );
+use MIME::Base64    qw( encode_base64 );
+use Types::Standard qw( Bool InstanceOf Int Str CodeRef );
+use HTTP::Status    qw( HTTP_OK is_success );
+use URI::Escape     qw( uri_escape uri_escape_utf8 );
+use LWP::UserAgent  ();
 
 has 'oauth_authorize_url' => (
     is      => 'rw',
@@ -44,12 +42,6 @@ has 'oauth_client_secret' => (
     default => $ENV{SPOTIFY_CLIENT_SECRET} || q{}
 );
 
-has 'current_oath_code' => (
-    is      => 'rw',
-    isa     => Str,
-    default => q{}
-);
-
 has 'current_access_token' => (
     is      => 'rw',
     isa     => Str,
@@ -62,15 +54,9 @@ has 'refresh_token' => (
     default => q{}
 );
 
-has 'result_format' => (
-    is      => 'rw',
-    isa     => Str,
-    default => 'json'
-);
-
 has 'grab_response_header' => (
     is      => 'rw',
-    isa     => Int,
+    isa     => Bool,
     default => 0
 );
 
@@ -98,32 +84,15 @@ has 'current_client_credentials' => (
     default => q{}
 );
 
-has 'force_client_auth' => (
-    is      => 'rw',
-    isa     => Bool,
-    default => 1
-);
-
 has 'uri_hostname' => (
     is      => 'ro',
     isa     => Str,
     default => 'api.spotify.com'
 );
 
-has 'uri_domain_path' => (
-    is      => 'rw',
-    isa     => Str,
-    default => 'api'
-);
-
-has 'call_type' => (
-    is  => 'rw',
-    isa => Str
-);
-
 has 'auto_json_decode' => (
     is      => 'rw',
-    isa     => Int,
+    isa     => Bool,
     default => 0
 );
 
@@ -145,21 +114,11 @@ has 'response_headers' => (
     default => q{}
 );
 
-has 'problem' => (
-    is      => 'rw',
-    isa     => Str,
-    default => q{}
-);
-
 has 'ua' => (
     is      => 'ro',
     isa     => InstanceOf ['LWP::UserAgent'],
-    handles => { _mech => 'clone' },
     lazy    => 1,
-    default => sub {
-        require WWW::Mechanize;
-        WWW::Mechanize->new( autocheck => 0 );
-    },
+    default => sub { LWP::UserAgent->new },
 );
 
 has 'response_status' => (
@@ -214,14 +173,6 @@ my @api_call_options = (
     },
 
     {
-        path   => '/v1/audiobooks',
-        info   => 'Get several audiobooks',
-        type   => 'GET',
-        method => 'get_several_audiobooks',
-        params => [ 'ids', 'market' ]
-    },
-
-    {
         path   => '/v1/audiobooks/{id}/chapters',
         info   => 'Get Audiobook Chapters',
         type   => 'GET',
@@ -238,30 +189,6 @@ my @api_call_options = (
     },
 
     {
-        path   => '/v1/me/audiobooks',
-        info   => 'Save Audiobooks for Current User',
-        type   => 'PUT',
-        method => 'save_audiobooks_for_current_user',
-        params => ['ids']
-    },
-
-    {
-        path   => '/v1/me/audiobooks',
-        info   => 'Remove User\'s Saved Audiobooks',
-        type   => 'DELETE',
-        method => 'remove_users_saved_audiobooks',
-        params => ['ids']
-    },
-
-    {
-        path   => '/v1/me/audiobooks/contains',
-        info   => 'Check User\'s Saved Audiobooks',
-        type   => 'GET',
-        method => 'check_users_saved_audiobooks',
-        params => ['ids']
-    },
-
-    {
         path   => '/v1/me/shows',
         info   => 'Get User\'s Saved Shows',
         type   => 'GET',
@@ -270,58 +197,11 @@ my @api_call_options = (
     },
 
     {
-        path   => '/v1/me/shows',
-        info   => 'Save Shows for Current User',
-        type   => 'PUT',
-        method => 'save_shows_for_current_user',
-        params => ['ids']
-    },
-
-    {
-        path   => '/v1/me/shows/contains',
-        info   => 'Check User\'s Saved Shows',
-        type   => 'GET',
-        method => 'check_users_saved_shows',
-        params => ['ids']
-    },
-
-    {
-        path   => '/v1/browse/categories',
-        info   => 'Get Several Browse Categories',
-        type   => 'GET',
-        method => 'get_categories',
-        params => [ 'country', 'locale', 'limit', 'offset' ]
-    },
-
-    {
-        path   => '/v1/browse/categories/{category_id}',
-        info   => 'Get Single Browse Category',
-        type   => 'GET',
-        method => 'get_category',
-        params => [ 'category_id', 'locale' ]
-    },
-
-    {
         path   => '/v1/chapters/{id}',
         info   => 'Get a Chapter',
         type   => 'GET',
         method => 'get_chapter',
         params => [ 'id', 'market' ]
-    },
-
-    {
-        path   => '/v1/chapters',
-        info   => 'Get Several Chapters',
-        type   => 'GET',
-        method => 'get_several_chapters',
-        params => [ 'ids', 'market' ]
-    },
-
-    {
-        path   => '/v1/recommendations/available-genre-seeds',
-        info   => 'Get Available Genre Seeds',
-        type   => 'GET',
-        method => 'get_available_genre_seeds'
     },
 
     {
@@ -340,27 +220,11 @@ my @api_call_options = (
     },
 
     {
-        path   => '/v1/shows',
-        info   => 'Get Several Shows',
-        type   => 'GET',
-        method => 'get_several_shows',
-        params => [ 'ids', 'market' ]
-    },
-
-    {
         path   => '/v1/shows/{id}/episodes',
         info   => 'Get Show Episodes',
         type   => 'GET',
         method => 'get_show_episodes',
         params => [ 'id', 'market', 'limit', 'offset' ]
-    },
-
-    {
-        path   => '/v1/albums?ids={ids}',
-        info   => 'Get several albums',
-        type   => 'GET',
-        method => 'albums',
-        params => [ 'limit', 'offset' ]
     },
 
     {
@@ -408,88 +272,11 @@ my @api_call_options = (
     },
 
     {
-        path   => '/v1/me/tracks',
-        info   => 'Remove User\'s Saved Tracks',
-        type   => 'DELETE',
-        method => 'remove_user_saved_tracks'
-    },
-
-    {
-        path   => '/v1/me/tracks/contains',
-        info   => 'Check User\'s Saved Tracks',
-        type   => 'GET',
-        method => 'check_users_saved_tracks'
-    },
-
-    {
-        path   => '/v1/audio-features',
-        info   => 'Get Several Tracks\' Audio Features',
-        type   => 'GET',
-        method => 'get_several_tracks_audio_features'
-    },
-
-    {
-        path   => '/v1/audio-features/{id}',
-        info   => 'Get Track\'s Audio Features',
-        type   => 'GET',
-        method => 'get_track_audio_features'
-    },
-
-    {
-        path   => '/v1/audio-analysis/{id}',
-        info   => 'Get Track\'s Audio Analysis',
-        type   => 'GET',
-        method => 'get_track_audio_analysis'
-    },
-
-    {
-        path   => '/v1/recommendations',
-        info   => 'Get Recommendations',
-        type   => 'GET',
-        method => 'get_recommendations',
-        params => [
-            'seed_artists', 'seed_genres', 'seed_tracks', 'limit', 'market'
-        ]
-    },
-
-    {
         path   => '/v1/me/following',
         info   => 'Get Followed Artists',
         type   => 'GET',
         method => 'get_followed_artists',
         params => [ 'type', 'after', 'limit' ]
-    },
-
-    {
-        path   => '/v1/me/following',
-        info   => 'Follow Artists or Users',
-        type   => 'PUT',
-        method => 'follow_artists_or_users',
-        params => [ 'type', 'ids' ]
-    },
-
-    {
-        path   => '/v1/me/following',
-        info   => 'Unfollow Artists or Users',
-        type   => 'DELETE',
-        method => 'unfollow_artists_or_users',
-        params => [ 'type', 'ids' ]
-    },
-
-    {
-        path   => '/v1/me/following/contains',
-        info   => 'Check if Current User Follows Artists or Users',
-        type   => 'GET',
-        method => 'check_if_user_follows_artists_or_users',
-        params => [ 'type', 'ids' ]
-    },
-
-    {
-        path   => '/v1/playlists/{playlist_id}/followers/contains',
-        info   => 'Check if Current User Follows Playlist',
-        type   => 'GET',
-        method => 'check_if_user_follows_playlist',
-        params => [ 'playlist_id', 'ids' ]
     },
 
     {
@@ -507,33 +294,11 @@ my @api_call_options = (
     },
 
     {
-        path   => '/v1/artists?ids={ids}',
-        info   => 'Get several artists',
-        type   => 'GET',
-        method => 'artists'
-    },
-
-    {
         path   => '/v1/artists/{id}/albums',
         info   => q{Get an artist's albums},
         type   => 'GET',
         method => 'artist_albums',
         params => [ 'limit', 'offset', 'country', 'album_type' ]
-    },
-
-    {
-        path   => '/v1/artists/{id}/top-tracks?country={country}',
-        info   => q{Get an artist's top tracks},
-        type   => 'GET',
-        method => 'artist_top_tracks',
-        params => ['country']
-    },
-
-    {
-        path   => '/v1/artists/{id}/related-artists',
-        info   => q{Get an artist's related artists},
-        type   => 'GET',
-        method => 'artist_related_artists',
     },
 
     # adding q and type to url unlike example since they are both required
@@ -553,45 +318,10 @@ my @api_call_options = (
     },
 
     {
-        path   => '/v1/tracks?ids={ids}',
-        info   => 'Get several tracks',
-        type   => 'GET',
-        method => 'tracks'
-    },
-
-    {
-        path   => '/v1/users/{user_id}',
-        info   => q{Get a user's profile},
-        type   => 'GET',
-        method => 'user'
-    },
-
-    {
         path   => '/v1/me',
         info   => q{Get current user's profile},
         type   => 'GET',
         method => 'me'
-    },
-
-    {
-        path   => '/v1/users/{user_id}/playlists',
-        info   => q{Get a list of a user's playlists},
-        type   => 'GET',
-        method => 'user_playlist'
-    },
-
-    {
-        path   => '/v1/browse/featured-playlists',
-        info   => 'Get a list of featured playlists',
-        type   => 'GET',
-        method => 'browse_featured_playlists'
-    },
-
-    {
-        path   => '/v1/browse/new-releases',
-        info   => 'Get a list of new releases',
-        type   => 'GET',
-        method => 'browse_new_releases'
     },
 
     # February 2026 consolidated library endpoints.  These take Spotify
@@ -622,77 +352,7 @@ my @api_call_options = (
     },
 );
 
-# Methods whose endpoints were removed or consolidated by Spotify's
-# February 2026 API changes (plus the November 2024 deprecations).  The
-# methods are kept for backwards compatibility; calling one warns once
-# per process and the request is still sent (Spotify will reject it).
-my %method_deprecated = (
-    albums =>
-        'GET /v1/albums?ids= removed Feb 2026; fetch albums individually with album()',
-    artists =>
-        'GET /v1/artists?ids= removed Feb 2026; fetch artists individually with artist()',
-    tracks =>
-        'GET /v1/tracks?ids= removed Feb 2026; fetch tracks individually with track()',
-    get_several_shows =>
-        'GET /v1/shows removed Feb 2026; use get_show() per id',
-    get_several_audiobooks =>
-        'GET /v1/audiobooks removed Feb 2026; use get_audiobook() per id',
-    get_several_chapters =>
-        'GET /v1/chapters removed Feb 2026; use get_chapter() per id',
-    get_several_tracks_audio_features =>
-        'GET /v1/audio-features removed Feb 2026',
-    get_track_audio_features =>
-        'GET /v1/audio-features/{id} deprecated by Spotify (Nov 2024)',
-    get_track_audio_analysis =>
-        'GET /v1/audio-analysis/{id} deprecated by Spotify (Nov 2024)',
-    get_recommendations =>
-        'GET /v1/recommendations deprecated by Spotify (Nov 2024)',
-    get_available_genre_seeds =>
-        'GET /v1/recommendations/available-genre-seeds removed',
-    browse_featured_playlists =>
-        'GET /v1/browse/featured-playlists removed by Spotify (Nov 2024)',
-    browse_new_releases => 'GET /v1/browse/new-releases removed Feb 2026',
-    get_categories      => 'GET /v1/browse/categories removed Feb 2026',
-    get_category        => 'GET /v1/browse/categories/{id} removed Feb 2026',
-    artist_top_tracks   => 'GET /v1/artists/{id}/top-tracks removed Feb 2026',
-    artist_related_artists =>
-        'GET /v1/artists/{id}/related-artists removed by Spotify (Nov 2024)',
-    user => 'GET /v1/users/{user_id} deprecated/removed Feb 2026',
-    remove_user_saved_tracks =>
-        'DELETE /v1/me/tracks removed Feb 2026; use remove_library_items()',
-    check_users_saved_tracks =>
-        'GET /v1/me/tracks/contains removed Feb 2026; use check_library_items()',
-    save_shows_for_current_user =>
-        'PUT /v1/me/shows removed Feb 2026; use save_library_items()',
-    check_users_saved_shows =>
-        'GET /v1/me/shows/contains removed Feb 2026; use check_library_items()',
-    save_audiobooks_for_current_user =>
-        'PUT /v1/me/audiobooks removed Feb 2026; use save_library_items()',
-    remove_users_saved_audiobooks =>
-        'DELETE /v1/me/audiobooks removed Feb 2026; use remove_library_items()',
-    check_users_saved_audiobooks =>
-        'GET /v1/me/audiobooks/contains removed Feb 2026; use check_library_items()',
-    follow_artists_or_users =>
-        'PUT /v1/me/following removed Feb 2026; use save_library_items()',
-    unfollow_artists_or_users =>
-        'DELETE /v1/me/following removed Feb 2026; use remove_library_items()',
-    check_if_user_follows_artists_or_users =>
-        'GET /v1/me/following/contains removed Feb 2026; use check_library_items()',
-    check_if_user_follows_playlist =>
-        'GET /v1/playlists/{id}/followers/contains removed Feb 2026; use check_library_items()',
-);
-
-my %deprecation_warned;
-
-my %method_to_uri = ();
-
-foreach my $entry (@api_call_options) {
-    next if $entry->{method} eq q{};
-    warn
-        "WWW::Spotify: duplicate method '$entry->{method}' in \@api_call_options\n"
-        if exists $method_to_uri{ $entry->{method} };
-    $method_to_uri{ $entry->{method} } = $entry->{path};
-}
+my %method_to_uri = map { $_->{method} => $_->{path} } @api_call_options;
 
 # _build_url: construct the request URL from an attributes hashref.
 #
@@ -746,141 +406,76 @@ sub _build_url {
 # Parameters:
 #   $verb        - 'get' | 'post' | 'put' | 'delete'
 #   $url         - fully-formed request URL
-#   $attributes  - original attributes hashref (used for auth flag)
+#   $attributes  - original attributes hashref
 #   $body        - optional request body (undef for GET)
+#
+# Returns the HTTP::Response.
 sub _send_request {
     my ( $self, $verb, $url, $attributes, $body ) = @_;
 
-    my $method = $attributes->{method} // q{};
-    if ( my $reason = $method_deprecated{$method} ) {
-        carp
-            "WWW::Spotify: $method() targets a removed/deprecated Spotify endpoint: $reason"
-            unless $deprecation_warned{$method}++;
+    if ( $self->current_access_token() eq q{}
+        || time() >= $self->token_expires_at() ) {
+        warn "Needed to get access token\n" if $self->debug();
+        $self->current_access_token(q{});
+        $self->get_client_credentials();
     }
 
-    my $mech = $self->_mech;
+    my @headers
+        = ( Authorization => 'Bearer ' . $self->current_access_token() );
+    push @headers, 'Content-Type' => 'application/json', Content => $body
+        if defined $body;
 
-    if (   $attributes->{client_auth_required}
-        || $self->force_client_auth() != 0 ) {
-        if ( $self->current_access_token() eq q{}
-            || time() >= $self->token_expires_at() ) {
-            warn "Needed to get access token\n" if $self->debug();
-            $self->current_access_token(q{});
-            $self->get_client_credentials();
-        }
-        $mech->add_header(
-            'Authorization' => 'Bearer ' . $self->current_access_token() );
-    }
+    my $res = $self->ua->$verb( $url, @headers );
 
-    if ( defined $body ) {
-        $mech->add_header( 'Content-Type' => 'application/json' );
-        $mech->$verb( $url, Content => $body );
-    }
-    else {
-        $mech->$verb($url);
-    }
-
-    if ( $self->grab_response_header() == 1 ) {
-        $self->_set_response_headers($mech);
-    }
-
-    $self->response_status( $mech->status() );
-    $self->response_content_type( $mech->content_type() );
+    $self->response_headers( $res->headers->as_string )
+        if $self->grab_response_header();
+    $self->response_status( $res->code );
+    $self->response_content_type( scalar $res->content_type );
 
     if ( $self->_has_custom_request_handler() ) {
         $self->_set_custom_request_handler_result(
-            $self->custom_request_handler()->($mech) );
+            $self->custom_request_handler()->($res) );
     }
 
-    return $mech;
+    return $res;
 }
 
-sub send_post_request {
-    my ( $self, $attributes ) = @_;
+sub _finish_request {
+    my ( $self, $res ) = @_;
 
-    $self->last_error(q{});
-
-    my ( $url, $body_params ) = $self->_build_url($attributes);
-    my $body = %{$body_params} ? encode_json($body_params) : '';
-    my $mech = $self->_send_request( 'post', $url, $attributes, $body );
-
-    if (   $self->response_content_type() =~ /application\/json/i
-        && $self->response_status() != HTTP_OK ) {
-        warn "content type is ", $self->response_content_type(), "\n"
-            if $self->debug();
-        $self->last_error( "request failed, status("
-                . $self->response_status()
-                . ") examine last_result for details" );
-    }
-
-    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
+    if ( $self->die_on_response_error() && $self->last_error ne '' ) {
         die $self->last_error();
     }
 
     return $self->format_results(
-        $mech->content, $mech->ct(),
-        $mech->status()
-    );
+        $res->decoded_content( charset => 'none' ) );
 }
 
-sub send_delete_request {
-
-    # Internal method used to send DELETE requests to the Spotify API.
-    my ( $self, $attributes ) = @_;
+# POST / PUT / DELETE: params not consumed by the URL path go in a JSON body.
+sub _send_body_request {
+    my ( $self, $verb, $attributes ) = @_;
 
     $self->last_error(q{});
 
     my ( $url, $body_params ) = $self->_build_url($attributes);
-    my $body = %{$body_params} ? encode_json($body_params) : '';
-    my $mech = $self->_send_request( 'delete', $url, $attributes, $body );
+    my $body = %{$body_params} ? encode_json($body_params) : undef;
+    my $res  = $self->_send_request( $verb, $url, $attributes, $body );
 
     if ( !is_success( $self->response_status() ) ) {
-        warn "Delete request failed with status ", $self->response_status(),
-            "\n"
+        warn "\u$verb request failed with status ",
+            $self->response_status(), "\n"
             if $self->debug();
-        $self->last_error( "Delete request failed, status("
+        $self->last_error( "\u$verb request failed, status("
                 . $self->response_status()
                 . ") examine last_result for details" );
     }
 
-    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
-        die $self->last_error();
-    }
-
-    return $self->format_results(
-        $mech->content, $mech->ct(),
-        $mech->status()
-    );
+    return $self->_finish_request($res);
 }
 
-sub send_put_request {
-
-    # Internal method used to send PUT requests to the Spotify API.
-    my ( $self, $attributes ) = @_;
-
-    $self->last_error(q{});
-
-    my ( $url, $body_params ) = $self->_build_url($attributes);
-    my $body = %{$body_params} ? encode_json($body_params) : '';
-    my $mech = $self->_send_request( 'put', $url, $attributes, $body );
-
-    if ( !is_success( $self->response_status() ) ) {
-        warn "Put request failed with status ", $self->response_status(), "\n"
-            if $self->debug();
-        $self->last_error( "Put request failed, status("
-                . $self->response_status()
-                . ") examine last_result for details" );
-    }
-
-    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
-        die $self->last_error();
-    }
-
-    return $self->format_results(
-        $mech->content, $mech->ct(),
-        $mech->status()
-    );
-}
+sub send_post_request   { $_[0]->_send_body_request( post   => $_[1] ) }
+sub send_put_request    { $_[0]->_send_body_request( put    => $_[1] ) }
+sub send_delete_request { $_[0]->_send_body_request( delete => $_[1] ) }
 
 sub send_get_request {
 
@@ -897,15 +492,10 @@ sub send_get_request {
         my @tmp = ();
 
         foreach my $key ( keys %{ $attributes->{extras} } ) {
-            push @tmp, "$key=" . uri_escape( $attributes->{extras}{$key} );
+            push @tmp,
+                "$key=" . uri_escape_utf8( $attributes->{extras}{$key} );
         }
         $uri_params = join( '&', @tmp );
-    }
-
-    if ( exists $attributes->{format}
-        && $attributes->{format} =~ /json|jsonp/ ) {
-        $self->result_format( $attributes->{format} );
-        delete $attributes->{format};
     }
 
     my $url;
@@ -955,7 +545,7 @@ sub send_get_request {
 
     warn "$url\n" if $self->debug;
 
-    my $mech = $self->_send_request( 'get', $url, $attributes, undef );
+    my $res = $self->_send_request( 'get', $url, $attributes, undef );
 
     # the original code did not provide adequate built in validation
     # of the response for an API call.
@@ -970,25 +560,7 @@ sub send_get_request {
                 . ") examine last_result for details" );
     }
 
-    if ( $self->die_on_response_error() == 1 && $self->last_error ne '' ) {
-        die $self->last_error();
-    }
-
-    return $self->format_results(
-        $mech->content, $mech->ct(),
-        $mech->status()
-    );
-}
-
-sub _set_response_headers {
-    my $self = shift;
-    my $mech = shift;
-
-    my $hd;
-    capture { $mech->dump_headers(); } \$hd;
-
-    $self->response_headers($hd);
-    return;
+    return $self->_finish_request($res);
 }
 
 sub format_results {
@@ -999,7 +571,7 @@ sub format_results {
     # we want to interact with it via a helper method
     $self->last_result($content);
 
-    if ( $self->auto_json_decode && $self->result_format eq 'json' ) {
+    if ( $self->auto_json_decode ) {
         my $decoded = eval { decode_json($content) };
         die "format_results: last_result is not valid JSON: $@\n" if $@;
         return $decoded;
@@ -1009,22 +581,6 @@ sub format_results {
     # json instead of a perl data structure
 
     return $content;
-}
-
-sub get_oauth_authorize {
-    my $self = shift;
-
-    # If an OAuth code was previously stored, return it immediately.
-    if ( $self->current_oath_code() ) {
-        return $self->current_oath_code();
-    }
-
-    # Return the authorization URL for the caller to redirect the user to.
-    # The old implementation fired this URL server-side (fetching a browser
-    # login page) which was both broken and a security concern - the UA was
-    # bypassing all auth-header machinery and the result was discarded HTML.
-    # authorize_url() builds the same URL correctly with proper URI escaping.
-    return $self->authorize_url();
 }
 
 sub get_client_credentials {
@@ -1037,38 +593,14 @@ sub get_client_credentials {
     if ( $self->oauth_client_id() eq q{} ) {
         die "need to set the client oauth parameters\n";
     }
-    $self->_assert_token_url();
 
-    my $grant_type = 'client_credentials';
-    my $mech       = $self->_mech;
-    my $client_and_secret
-        = $self->oauth_client_id() . ':' . $self->oauth_client_secret();
-    my $encoded = encode_base64($client_and_secret);
-    my $url     = $self->oauth_token_url();
+    my $form = { grant_type => 'client_credentials' };
+    $form->{scope} = $scope if $scope;
 
-    my $extra = { grant_type => $grant_type };
-    if ($scope) {
-        $extra->{scope} = $scope;
-    }
-
-    chomp($encoded);
-    $encoded =~ s/\n//g;
-    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
-
-    $mech->post( $url, [$extra] );
-    my $content = $mech->content();
-
-    my $result = eval { decode_json $content };
-    if ( $result && $result->{'access_token'} ) {
-        warn "setting access token\n" if $self->debug();
-        $self->current_access_token( $result->{'access_token'} );
-        if ( $result->{'expires_in'} ) {
-            $self->token_expires_at( time() + $result->{'expires_in'} );
-        }
-    }
-    else {
-        die "get_client_credentials: failed to obtain access token\n";
-    }
+    $self->_request_token($form)
+        or die "get_client_credentials: failed to obtain access token\n";
+    warn "setting access token\n" if $self->debug();
+    return $self->current_access_token();
 }
 
 sub authorize_url {
@@ -1102,11 +634,12 @@ sub _request_token {
     my $encoded = encode_base64(
         $self->oauth_client_id() . ':' . $self->oauth_client_secret(), q{} );
 
-    my $mech = $self->_mech;
-    $mech->add_header( 'Authorization' => 'Basic ' . $encoded );
-    $mech->post( $self->oauth_token_url(), [$form] );
+    my $res = $self->ua->post(
+        $self->oauth_token_url(), $form,
+        Authorization => 'Basic ' . $encoded
+    );
 
-    my $result = eval { decode_json( $mech->content() ) };
+    my $result = eval { decode_json( $res->content ) };
 
     return 0 unless $result && $result->{access_token};
 
@@ -1175,8 +708,6 @@ sub get {
 
     my $search_ref = $result;
 
-    warn Dumper($result) if $self->debug();
-
     foreach my $key (@return) {
         my $type = 'value';
         if ( $key =~ /\*\]/ ) {
@@ -1203,51 +734,18 @@ sub get {
 
 }
 
-sub build_url_base {
-
-    # first the uri type
-    my $self      = shift;
-    my $call_type = shift || $self->call_type();
-
-    my $url = $self->uri_scheme();
-
-    # the ://
-    $url .= '://';
-
-    # the domain
-    $url .= $self->uri_hostname();
-
-    # the path
-    if ( $self->uri_domain_path() ) {
-        $url .= '/' . $self->uri_domain_path();
-    }
-
-    return $url;
-}
-
-#- may want to move this at some point
-
 sub query_full_url {
-    my $self                 = shift;
-    my $url                  = shift;
-    my $client_auth_required = shift || 0;
+    my ( $self, $url ) = @_;
 
     # Prevent bearer-token leakage to off-origin hosts.  All Spotify API
     # responses that contain URLs (next/previous paging, href fields) point to
     # api.spotify.com; anything else is unexpected and potentially malicious.
-    if ( $client_auth_required || $self->force_client_auth() ) {
-        die "query_full_url: URL '$url' is not allowed - "
-            . "only https://api.spotify.com/ URLs may be called with credentials\n"
-            unless $url =~ m{\Ahttps://api\.spotify\.com/}i;
-    }
+    die "query_full_url: URL '$url' is not allowed - "
+        . "only https://api.spotify.com/ URLs may be called with credentials\n"
+        unless $url =~ m{\Ahttps://api\.spotify\.com/}i;
 
     return $self->send_get_request(
-        {
-            method               => 'query_full_url',
-            url                  => $url,
-            client_auth_required => $client_auth_required
-        }
-    );
+        { method => 'query_full_url', url => $url } );
 }
 
 #-- spotify specific methods
@@ -1260,36 +758,10 @@ sub album {
 
     return $self->send_get_request(
         {
-            method               => 'album',
-            params               => { 'id' => $id },
-            client_auth_required => 1
+            method => 'album',
+            params => { 'id' => $id },
         }
     );
-}
-
-sub albums {
-    my $self = shift;
-    my $ids  = shift;
-
-    die "albums ids is required\n" unless defined $ids && length $ids;
-
-    if ( ref($ids) eq 'ARRAY' ) {
-        $ids = join_ids($ids);
-    }
-
-    return $self->send_get_request(
-        {
-            method               => 'albums',
-            params               => { 'ids' => $ids },
-            client_auth_required => 1
-        }
-    );
-
-}
-
-sub join_ids {
-    my $array = shift;
-    return join( ',', @$array );
 }
 
 sub albums_tracks {
@@ -1301,10 +773,9 @@ sub albums_tracks {
 
     return $self->send_get_request(
         {
-            method               => 'albums_tracks',
-            params               => { 'id' => $album_id },
-            extras               => $extras,
-            client_auth_required => 1
+            method => 'albums_tracks',
+            params => { 'id' => $album_id },
+            extras => $extras,
         }
     );
 
@@ -1318,30 +789,8 @@ sub artist {
 
     return $self->send_get_request(
         {
-            method               => 'artist',
-            params               => { 'id' => $id },
-            client_auth_required => 1
-        }
-    );
-
-}
-
-sub artists {
-    my $self    = shift;
-    my $artists = shift;
-
-    die "artists ids is required\n"
-        unless defined $artists && length $artists;
-
-    if ( ref($artists) eq 'ARRAY' ) {
-        $artists = join_ids($artists);
-    }
-
-    return $self->send_get_request(
-        {
-            method               => 'artists',
-            params               => { 'ids' => $artists },
-            client_auth_required => 1
+            method => 'artist',
+            params => { 'id' => $id },
         }
     );
 
@@ -1357,47 +806,9 @@ sub artist_albums {
 
     return $self->send_get_request(
         {
-            method               => 'artist_albums',
-            params               => { 'id' => $artist_id },
-            extras               => $extras,
-            client_auth_required => 1
-        }
-    );
-
-}
-
-sub artist_top_tracks {
-    my $self      = shift;
-    my $artist_id = shift;
-    my $country   = shift;
-
-    die "artist_id is required\n"
-        unless defined $artist_id && length $artist_id;
-
-    return $self->send_get_request(
-        {
-            method => 'artist_top_tracks',
-            params => {
-                'id'      => $artist_id,
-                'country' => $country,
-            },
-            client_auth_required => 1
-        }
-    );
-
-}
-
-sub artist_related_artists {
-    my $self      = shift;
-    my $artist_id = shift;
-
-    die "artist_id is required\n"
-        unless defined $artist_id && length $artist_id;
-
-    return $self->send_get_request(
-        {
-            method => 'artist_related_artists',
-            params => { 'id' => $artist_id }
+            method => 'artist_albums',
+            params => { 'id' => $artist_id },
+            extras => $extras,
         }
     );
 
@@ -1407,8 +818,7 @@ sub me {
     my $self = shift;
     return $self->send_get_request(
         {
-            method               => 'me',
-            client_auth_required => 1
+            method => 'me',
         }
     );
 }
@@ -1417,14 +827,14 @@ sub next_result_set {
     my $self = shift;
     my $url  = $self->get('next');
     return unless defined $url && $url ne 'null' && $url ne q{};
-    return $self->query_full_url( $url, 1 );
+    return $self->query_full_url($url);
 }
 
 sub previous_result_set {
     my $self = shift;
     my $url  = $self->get('previous');
     return unless defined $url && $url ne 'null' && $url ne q{};
-    return $self->query_full_url( $url, 1 );
+    return $self->query_full_url($url);
 }
 
 sub search {
@@ -1436,28 +846,17 @@ sub search {
     die "search query (q) is required\n" unless defined $q    && length $q;
     die "search type is required\n"      unless defined $type && length $type;
 
-    # looks like search now requires auth
-    # we will force authentication but need to
-    # reset this to the previous value since not
-    # all requests require auth
-    my $old_force_client_auth = $self->force_client_auth();
-    $self->force_client_auth(1);
-
     my $response = $self->send_get_request(
         {
             method => 'search',
             params => {
-                q    => uri_escape($q),
-                type => uri_escape($type),
+                q    => uri_escape_utf8($q),
+                type => uri_escape_utf8($type),
             },
-            extras               => $extras,
-            client_auth_required => 1,
+            extras => $extras,
         }
     );
 
-    # reset auth to what it was before to avoid overly chatty
-    # requests
-    $self->force_client_auth($old_force_client_auth);
     return $response;
 }
 
@@ -1475,76 +874,6 @@ sub track {
     );
 }
 
-sub browse_featured_playlists {
-    my $self   = shift;
-    my $extras = shift;
-
-    # locale
-    # country
-    # limit
-    # offset
-
-    return $self->send_get_request(
-        {
-            method               => 'browse_featured_playlists',
-            extras               => $extras,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub browse_new_releases {
-    my $self   = shift;
-    my $extras = shift;
-
-    # locale
-    # country
-    # limit
-    # offset
-
-    return $self->send_get_request(
-        {
-            method               => 'browse_new_releases',
-            extras               => $extras,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub tracks {
-    my $self   = shift;
-    my $tracks = shift;
-
-    die "tracks ids is required\n" unless defined $tracks && length $tracks;
-
-    if ( ref($tracks) eq 'ARRAY' ) {
-        $tracks = join_ids($tracks);
-    }
-
-    return $self->send_get_request(
-        {
-            method => 'tracks',
-            params => { 'ids' => $tracks }
-        }
-    );
-
-}
-
-sub user {
-    my $self    = shift;
-    my $user_id = shift;
-
-    die "user_id is required\n" unless defined $user_id && length $user_id;
-
-    return $self->send_get_request(
-        {
-            method => 'user',
-            params => { 'user_id' => $user_id }
-        }
-    );
-
-}
-
 sub get_playlist {
     my ( $self, $playlist_id ) = @_;
 
@@ -1553,9 +882,8 @@ sub get_playlist {
 
     return $self->send_get_request(
         {
-            method               => 'get_playlist',
-            params               => { 'playlist_id' => $playlist_id },
-            client_auth_required => 1
+            method => 'get_playlist',
+            params => { 'playlist_id' => $playlist_id },
         }
     );
 }
@@ -1568,10 +896,9 @@ sub get_playlist_items {
 
     return $self->send_get_request(
         {
-            method               => 'get_playlist_items',
-            params               => { 'playlist_id' => $playlist_id },
-            client_auth_required => 1,
-            extras               => $extras
+            method => 'get_playlist_items',
+            params => { 'playlist_id' => $playlist_id },
+            extras => $extras
         }
     );
 }
@@ -1585,9 +912,8 @@ sub create_playlist {
 
     return $self->send_post_request(
         {
-            method               => 'create_playlist',
-            client_auth_required => 1,
-            params               => \%params
+            method => 'create_playlist',
+            params => \%params
         }
     );
 }
@@ -1596,9 +922,8 @@ sub get_current_user_playlists {
     my ( $self, $extras ) = @_;
     return $self->send_get_request(
         {
-            method               => 'get_current_user_playlists',
-            client_auth_required => 1,
-            extras               => $extras
+            method => 'get_current_user_playlists',
+            extras => $extras
         }
     );
 }
@@ -1617,9 +942,8 @@ sub add_items_to_playlist {
 
     return $self->send_post_request(
         {
-            method               => 'add_items_to_playlist',
-            client_auth_required => 1,
-            params               => \%params
+            method => 'add_items_to_playlist',
+            params => \%params
         }
     );
 }
@@ -1632,92 +956,8 @@ sub unfollow_playlist {
 
     return $self->send_delete_request(
         {
-            method               => 'unfollow_playlist',
-            client_auth_required => 1,
-            params               => { 'playlist_id' => $playlist_id }
-        }
-    );
-}
-
-sub remove_user_saved_tracks {
-    my ( $self, $ids ) = @_;
-
-    if ( ref($ids) eq 'ARRAY' ) {
-        $ids = join_ids($ids);
-    }
-
-    return $self->send_delete_request(
-        {
-            method => 'remove_user_saved_tracks',
-            params => { 'ids' => $ids }
-        }
-    );
-}
-
-sub check_users_saved_tracks {
-    my ( $self, $ids ) = @_;
-
-    if ( ref($ids) eq 'ARRAY' ) {
-        $ids = join_ids($ids);
-    }
-
-    return $self->send_get_request(
-        {
-            method               => 'check_users_saved_tracks',
-            params               => { 'ids' => $ids },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_several_tracks_audio_features {
-    my ( $self, $ids ) = @_;
-
-    if ( ref($ids) eq 'ARRAY' ) {
-        $ids = join_ids($ids);
-    }
-
-    return $self->send_get_request(
-        {
-            method               => 'get_several_tracks_audio_features',
-            params               => { 'ids' => $ids },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_track_audio_features {
-    my ( $self, $id ) = @_;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_track_audio_features',
-            params               => { 'id' => $id },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_track_audio_analysis {
-    my ( $self, $id ) = @_;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_track_audio_analysis',
-            params               => { 'id' => $id },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_recommendations {
-    my ( $self, %params ) = @_;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_recommendations',
-            params               => \%params,
-            client_auth_required => 1
+            method => 'unfollow_playlist',
+            params => { 'playlist_id' => $playlist_id }
         }
     );
 }
@@ -1730,89 +970,8 @@ sub get_followed_artists {
 
     return $self->send_get_request(
         {
-            method               => 'get_followed_artists',
-            params               => \%params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub follow_artists_or_users {
-    my ( $self, $type, $ids ) = @_;
-
-    die "Type must be 'artist' or 'user'"
-        unless $type eq 'artist' or $type eq 'user';
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_put_request(
-        {
-            method => 'follow_artists_or_users',
-            params => {
-                type => $type,
-                ids  => $id_list
-            },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub unfollow_artists_or_users {
-    my ( $self, $type, $ids ) = @_;
-
-    die "Type must be 'artist' or 'user'"
-        unless $type eq 'artist' or $type eq 'user';
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_delete_request(
-        {
-            method => 'unfollow_artists_or_users',
-            params => {
-                type => $type,
-                ids  => $id_list
-            },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub check_if_user_follows_artists_or_users {
-    my ( $self, $type, $ids ) = @_;
-
-    die "Type must be 'artist' or 'user'"
-        unless $type eq 'artist' or $type eq 'user';
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_get_request(
-        {
-            method => 'check_if_user_follows_artists_or_users',
-            params => {
-                type => $type,
-                ids  => $id_list
-            },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub check_if_user_follows_playlist {
-    my ( $self, $playlist_id, $ids ) = @_;
-
-    die "playlist_id is required" unless $playlist_id;
-    die "ids is required"         unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_get_request(
-        {
-            method => 'check_if_user_follows_playlist',
-            params => {
-                playlist_id => $playlist_id,
-                ids         => $id_list
-            },
-            client_auth_required => 1
+            method => 'get_followed_artists',
+            params => \%params,
         }
     );
 }
@@ -1833,9 +992,8 @@ sub save_library_items {
 
     return $self->send_put_request(
         {
-            method               => 'save_library_items',
-            params               => { uris => _uris_param($uris) },
-            client_auth_required => 1
+            method => 'save_library_items',
+            params => { uris => _uris_param($uris) },
         }
     );
 }
@@ -1847,9 +1005,8 @@ sub remove_library_items {
 
     return $self->send_delete_request(
         {
-            method               => 'remove_library_items',
-            params               => { uris => _uris_param($uris) },
-            client_auth_required => 1
+            method => 'remove_library_items',
+            params => { uris => _uris_param($uris) },
         }
     );
 }
@@ -1861,9 +1018,8 @@ sub check_library_items {
 
     return $self->send_get_request(
         {
-            method               => 'check_library_items',
-            params               => { uris => _uris_param($uris) },
-            client_auth_required => 1
+            method => 'check_library_items',
+            params => { uris => _uris_param($uris) },
         }
     );
 }
@@ -1878,28 +1034,8 @@ sub get_audiobook {
 
     return $self->send_get_request(
         {
-            method               => 'get_audiobook',
-            params               => $params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_several_audiobooks {
-    my ( $self, $ids, $market ) = @_;
-
-    die "Audiobook IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    my $params = { ids => $id_list };
-    $params->{market} = $market if $market;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_several_audiobooks',
-            params               => $params,
-            client_auth_required => 1
+            method => 'get_audiobook',
+            params => $params,
         }
     );
 }
@@ -1913,9 +1049,8 @@ sub get_audiobook_chapters {
 
     return $self->send_get_request(
         {
-            method               => 'get_audiobook_chapters',
-            params               => \%params,
-            client_auth_required => 1
+            method => 'get_audiobook_chapters',
+            params => \%params,
         }
     );
 }
@@ -1929,57 +1064,8 @@ sub get_users_saved_audiobooks {
 
     return $self->send_get_request(
         {
-            method               => 'get_users_saved_audiobooks',
-            params               => $params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub save_audiobooks_for_current_user {
-    my ( $self, $ids ) = @_;
-
-    die "Audiobook IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_put_request(
-        {
-            method               => 'save_audiobooks_for_current_user',
-            params               => { ids => $id_list },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub remove_users_saved_audiobooks {
-    my ( $self, $ids ) = @_;
-
-    die "Audiobook IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_delete_request(
-        {
-            method               => 'remove_users_saved_audiobooks',
-            params               => { ids => $id_list },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub check_users_saved_audiobooks {
-    my ( $self, $ids ) = @_;
-
-    die "Audiobook IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_get_request(
-        {
-            method               => 'check_users_saved_audiobooks',
-            params               => { ids => $id_list },
-            client_auth_required => 1
+            method => 'get_users_saved_audiobooks',
+            params => $params,
         }
     );
 }
@@ -1989,69 +1075,8 @@ sub get_users_saved_shows {
 
     return $self->send_get_request(
         {
-            method               => 'get_users_saved_shows',
-            params               => \%params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub save_shows_for_current_user {
-    my ( $self, $ids ) = @_;
-
-    die "Show IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_put_request(
-        {
-            method               => 'save_shows_for_current_user',
-            params               => { ids => $id_list },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub check_users_saved_shows {
-    my ( $self, $ids ) = @_;
-
-    die "Show IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    return $self->send_get_request(
-        {
-            method               => 'check_users_saved_shows',
-            params               => { ids => $id_list },
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_categories {
-    my ( $self, %params ) = @_;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_categories',
-            params               => \%params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_category {
-    my ( $self, $category_id, %params ) = @_;
-
-    die "Category ID is required" unless $category_id;
-
-    $params{category_id} = $category_id;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_category',
-            params               => \%params,
-            client_auth_required => 1
+            method => 'get_users_saved_shows',
+            params => \%params,
         }
     );
 }
@@ -2065,38 +1090,8 @@ sub get_chapter {
 
     return $self->send_get_request(
         {
-            method               => 'get_chapter',
-            params               => \%params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_several_chapters {
-    my ( $self, $ids, %params ) = @_;
-
-    die "Chapter IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    $params{ids} = $id_list;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_several_chapters',
-            params               => \%params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_available_genre_seeds {
-    my ($self) = @_;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_available_genre_seeds',
-            client_auth_required => 1
+            method => 'get_chapter',
+            params => \%params,
         }
     );
 }
@@ -2106,8 +1101,7 @@ sub get_available_markets {
 
     return $self->send_get_request(
         {
-            method               => 'get_available_markets',
-            client_auth_required => 1
+            method => 'get_available_markets',
         }
     );
 }
@@ -2122,28 +1116,8 @@ sub get_show {
 
     return $self->send_get_request(
         {
-            method               => 'get_show',
-            params               => $params,
-            client_auth_required => 1
-        }
-    );
-}
-
-sub get_several_shows {
-    my ( $self, $ids, $market ) = @_;
-
-    die "Show IDs are required" unless $ids;
-
-    my $id_list = ref($ids) eq 'ARRAY' ? join( ',', @$ids ) : $ids;
-
-    my $params = { ids => $id_list };
-    $params->{market} = $market if $market;
-
-    return $self->send_get_request(
-        {
-            method               => 'get_several_shows',
-            params               => $params,
-            client_auth_required => 1
+            method => 'get_show',
+            params => $params,
         }
     );
 }
@@ -2157,9 +1131,8 @@ sub get_show_episodes {
 
     return $self->send_get_request(
         {
-            method               => 'get_show_episodes',
-            params               => \%params,
-            client_auth_required => 1
+            method => 'get_show_episodes',
+            params => \%params,
         }
     );
 }
@@ -2170,18 +1143,12 @@ sub get_show_episodes {
 
 =encoding UTF-8
 
-=head1 NAME
-
-WWW::Spotify - Spotify Web API Wrapper
-
-=head1 VERSION
-
-version 0.017
-
 =head1 SYNOPSIS
 
     use WWW::Spotify ();
 
+    # client id and secret default to $ENV{SPOTIFY_CLIENT_ID} and
+    # $ENV{SPOTIFY_CLIENT_SECRET}; every request sends a bearer token
     my $spotify = WWW::Spotify->new();
 
     my $result;
@@ -2190,8 +1157,6 @@ version 0.017
 
     # $result is a json structure, you can operate on it directly
     # or you can use the "get" method see below
-
-    $result = $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
 
     $result = $spotify->albums_tracks( '6akEvsycLGftJxYudPjmqK',
     {
@@ -2203,10 +1168,6 @@ version 0.017
 
     $result = $spotify->artist( '0LcJLqbBmaGUft1e9Mm8HV' );
 
-    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
-
-    $result = $spotify->artists( $artists_multiple );
-
     $result = $spotify->artist_albums( '1vCWHaC5f2uS3yhpwWbIA6' ,
                         { album_type => 'single',
                           # country => 'US',
@@ -2216,39 +1177,32 @@ version 0.017
 
     $result = $spotify->track( '0eGsygTp906u18L0Oimnem' );
 
-    $result = $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
-
-    $result = $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
-                                            'SE' # country
-                                            );
-
     $result = $spotify->search(
                         'tania bowra' ,
                         'artist' ,
                         { limit => 15 , offset => 0 }
     );
 
-    $result = $spotify->user( 'glennpmcdonald' );
+    my $names = $spotify->get('artists.items[*].name');
 
-    # public play interaction example
-    # NEED TO SET YOUR o_auth client_id and secret for these to work
+    # $names is an arrayref of every artist name in the search result
 
-    $spotify->browse_featured_playlists( country => 'US' );
+    # user-authorized (OAuth authorization code) flow: send the user to
+    # authorize_url, exchange the returned code, then call /v1/me endpoints
 
-    my $link = $spotify->get('playlists.items[*].href');
+    my $url = $spotify->authorize_url( { scope => 'playlist-read-private' } );
+    my $code = 'CODE';    # the ?code= value Spotify appends to the redirect
+    $spotify->get_access_token($code);
 
-    # $link is an arrayfef of the all the playlist urls
+    $result = $spotify->get_current_user_playlists();
+
+    my $link = $spotify->get('items[*].href');
 
     foreach my $playlist (@{$link}) {
-        # make sure the links look valid
-        next if $playlist !~ /playlists/;
-        $spotify->query_full_url($playlist,1);
+        $spotify->query_full_url($playlist);
         my $pl_name = $spotify->get('name');
-        my $tracks  = $spotify->get('tracks.items[*].track.id');
-        foreach my $track (@{$tracks}) {
-                print "$track\n";
-            }
-        }
+        print "$pl_name\n";
+    }
 
 =head1 DESCRIPTION
 
@@ -2260,22 +1214,51 @@ Have access to a JSON viewer to help develop and debug. The Chrome JSON viewer i
 very good and provides the exact path of the item within the JSON in the lower left
 of the screen as you mouse over an element.
 
+=head1 UPGRADING FROM 0.017 OR EARLIER
+
+Version 1.000 is a breaking release.  Besides removing the methods for
+endpoints Spotify deleted in November 2024 and February 2026 (the full
+list with replacements is in the Changes file), three things changed
+that affect code calling the endpoints that survived:
+
+=over 4
+
+=item * force_client_auth, result_format, get_oauth_authorize
+
+Removed.  Every request now sends a bearer token, so there is nothing
+to force.  Passing C<force_client_auth> to C<new()> is silently ignored
+by Moo; calling it as a method dies.  Use L</authorize_url> instead of
+C<get_oauth_authorize>.
+
+=item * custom_request_handler receives an HTTP::Response
+
+The callback used to get the WWW::Mechanize object.  It now gets the
+L<HTTP::Response>, so C<< $m->status() >> becomes C<< $res->code >>
+and C<< $m->content() >> becomes C<< $res->decoded_content >>.
+
+=item * last_result holds UTF-8 bytes
+
+It was previously a character string.  Decode it with
+L<JSON::MaybeXS/decode_json> (or set L</auto_json_decode>) rather than
+printing it to a C<:utf8> handle.
+
+=back
+
 =head1 CONSTRUCTOR ARGS
 
 =head2 ua
 
 You may provide your own user agent object to the constructor.  This should be
-a L<LWP:UserAgent> or a subclass of it, like L<WWW::Mechanize>. If you are
-using L<WWW::Mechanize>, you may want to set autocheck off.  To get extra
-debugging information, you can do something like this:
+a L<LWP::UserAgent> or a subclass of it.  To get extra debugging
+information, you can do something like this:
 
     use LWP::ConsoleLogger::Easy qw( debug_ua );
-    use WWW::Mechanize ();
+    use LWP::UserAgent ();
     use WWW::Spotify ();
 
-    my $mech = WWW::Mechanize->new( autocheck => 0 );
-    debug_ua( $mech );
-    my $spotify = WWW::Spotify->new( ua => $mech )
+    my $ua = LWP::UserAgent->new;
+    debug_ua( $ua );
+    my $spotify = WWW::Spotify->new( ua => $ua )
 
 =head1 METHODS
 
@@ -2315,18 +1298,6 @@ equivalent to /v1/albums/{id}
 
 used album vs albums since it is a singular request
 
-=head2 albums
-
-equivalent to /v1/albums?ids={ids}
-
-    $spotify->albums( '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37' );
-
-or
-
-    $spotify->albums( [ '41MnTivkwTO3UUJ8DrqEJJ',
-                        '6JWc4iAiJ9FjyK0B59ABb4',
-                        '6UXCm6bOO4gFlDQZV5yL37' ] );
-
 =head2 albums_tracks
 
 equivalent to /v1/albums/{id}/tracks
@@ -2347,14 +1318,6 @@ equivalent to /v1/artists/{id}
 
 used artist vs artists since it is a singular request and avoids collision with "artists" method
 
-=head2 artists
-
-equivalent to /v1/artists?ids={ids}
-
-    my $artists_multiple = '0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin';
-
-    $spotify->artists( $artists_multiple );
-
 =head2 artist_albums
 
 equivalent to /v1/artists/{id}/albums
@@ -2366,23 +1329,12 @@ equivalent to /v1/artists/{id}/albums
                           offset  => 0
                         }  );
 
-=head2 artist_top_tracks
-
-equivalent to /v1/artists/{id}/top-tracks
-
-    $spotify->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', # artist id
-                                 'SE' # country
-                                            );
-
-=head2 artist_related_artists
-
-equivalent to /v1/artists/{id}/related-artists
-
-    $spotify->artist_related_artists( '43ZHCT0cAZBISjO8DG9PnE' );
-
 =head2 search
 
 equivalent to /v1/search?type=album (etc)
+
+The query and any extras are UTF-8 encoded before escaping, so pass
+character strings (decoded text), not UTF-8 bytes.
 
     $spotify->search(
                         'tania bowra' ,
@@ -2398,42 +1350,6 @@ Note: as of the February 2026 API changes the maximum C<limit> is 10
 equivalent to /v1/tracks/{id}
 
     $spotify->track( '0eGsygTp906u18L0Oimnem' );
-
-=head2 tracks
-
-equivalent to /v1/tracks?ids={ids}
-
-    $spotify->tracks( '0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G' );
-
-=head2 browse_featured_playlists
-
-equivalent to /v1/browse/featured-playlists
-
-    $spotify->browse_featured_playlists();
-
-requires OAuth
-
-=head2 browse_new_releases
-
-equivalent to /v1/browse/new-releases
-
-requires OAuth
-
-    $spotify->browse_new_releases
-
-=head2 force_client_auth
-
-Boolean
-
-will pass authentication (OAuth) on all requests when set
-
-    $spotify->force_client_auth(1);
-
-=head2 user
-
-equivalent to /v1/users/{user_id}
-
-    $spotify->user('glennpmcdonald');
 
 =head2 get_playlist
 
@@ -2479,60 +1395,6 @@ playlist delete)
 
     $spotify->unfollow_playlist('playlist_id');
 
-=head2 remove_user_saved_tracks
-
-equivalent to /v1/me/tracks
-
-    $spotify->remove_user_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
-
-=head2 check_users_saved_tracks
-
-equivalent to /v1/me/tracks/contains
-
-    $spotify->check_users_saved_tracks(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
-
-=head2 check_users_saved_shows
-
-equivalent to GET /v1/me/shows/contains
-
-    $spotify->check_users_saved_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
-
-or
-
-    $spotify->check_users_saved_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
-
-This method checks if one or more shows are already saved in the current Spotify user's library.
-
-=head2 get_several_tracks_audio_features
-
-equivalent to /v1/audio-features
-
-    $spotify->get_several_tracks_audio_features(['4iV5W9uYEdYUVa79Axb7Rh', '1301WleyT98MSxVHPZCA6M']);
-
-=head2 get_track_audio_features
-
-equivalent to /v1/audio-features/{id}
-
-    $spotify->get_track_audio_features('4iV5W9uYEdYUVa79Axb7Rh');
-
-=head2 get_track_audio_analysis
-
-equivalent to /v1/audio-analysis/{id}
-
-    $spotify->get_track_audio_analysis('4iV5W9uYEdYUVa79Axb7Rh');
-
-=head2 get_recommendations
-
-equivalent to /v1/recommendations
-
-    $spotify->get_recommendations(
-        seed_artists => '4NHQUGzhtTLFvgF5SZesLK',
-        seed_genres => 'classical,country',
-        seed_tracks => '0c6xIDDpzE81m2q797ordA',
-        limit => 10,
-        market => 'ES'
-    );
-
 =head2 get_followed_artists
 
 equivalent to /v1/me/following
@@ -2543,46 +1405,6 @@ equivalent to /v1/me/following
     );
 
 Note: This method always sets the 'type' parameter to 'artist' as it's the only supported value.
-
-=head2 follow_artists_or_users
-
-equivalent to PUT /v1/me/following
-
-    $spotify->follow_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
-
-or
-
-    $spotify->follow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
-
-=head2 unfollow_artists_or_users
-
-equivalent to DELETE /v1/me/following
-
-    $spotify->unfollow_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
-
-or
-
-    $spotify->unfollow_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
-
-=head2 check_if_user_follows_artists_or_users
-
-equivalent to GET /v1/me/following/contains
-
-    $spotify->check_if_user_follows_artists_or_users('artist', ['2CIMQHirSU0MQqyYHq0eOx', '57dN52uHvrHOxijzpIgu3E']);
-
-or
-
-    $spotify->check_if_user_follows_artists_or_users('user', '2CIMQHirSU0MQqyYHq0eOx,57dN52uHvrHOxijzpIgu3E');
-
-=head2 check_if_user_follows_playlist
-
-equivalent to GET /v1/playlists/{playlist_id}/followers/contains
-
-    $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', 'jmperezperez');
-
-or
-
-    $spotify->check_if_user_follows_playlist('3cEYpjA9oz9GiPac4AsH4n', ['jmperezperez']);
 
 =head2 save_library_items
 
@@ -2611,36 +1433,6 @@ library endpoint; replaces the removed per-type */contains endpoints)
 
     $spotify->check_library_items( [ 'spotify:track:7a3LWj5xSFhFRYmztS8wgK' ] );
 
-=head2 DEPRECATED METHODS
-
-Spotify's November 2024 and February 2026 API changes removed or
-deprecated a number of endpoints.  The corresponding methods are kept
-for backwards compatibility but warn once per process when called, and
-Spotify will reject the request:
-
-batch fetch (removed - fetch individually instead): C<albums>, C<artists>,
-C<tracks>, C<get_several_shows>, C<get_several_audiobooks>,
-C<get_several_chapters>, C<get_several_tracks_audio_features>
-
-browse/artist (removed): C<browse_featured_playlists>,
-C<browse_new_releases>, C<get_categories>, C<get_category>,
-C<artist_top_tracks>, C<artist_related_artists>
-
-audio/recommendations (deprecated): C<get_track_audio_features>,
-C<get_track_audio_analysis>, C<get_recommendations>,
-C<get_available_genre_seeds>
-
-library (consolidated into /v1/me/library - use C<save_library_items>,
-C<remove_library_items>, C<check_library_items>):
-C<remove_user_saved_tracks>, C<check_users_saved_tracks>,
-C<save_shows_for_current_user>, C<check_users_saved_shows>,
-C<save_audiobooks_for_current_user>, C<remove_users_saved_audiobooks>,
-C<check_users_saved_audiobooks>, C<follow_artists_or_users>,
-C<unfollow_artists_or_users>, C<check_if_user_follows_artists_or_users>,
-C<check_if_user_follows_playlist>
-
-other: C<user> (GET /v1/users/{user_id} deprecated/removed)
-
 =head2 get_audiobook
 
 equivalent to GET /v1/audiobooks/{id}
@@ -2656,26 +1448,6 @@ or with market parameter:
 equivalent to GET /v1/me/audiobooks
 
     $spotify->get_users_saved_audiobooks(20, 0);
-
-=head2 remove_users_saved_audiobooks
-
-equivalent to DELETE /v1/me/audiobooks
-
-    $spotify->remove_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->remove_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
-
-This method removes one or more audiobooks from the current user's library.
-
-=head2 get_available_genre_seeds
-
-equivalent to GET /v1/recommendations/available-genre-seeds
-
-    $spotify->get_available_genre_seeds();
-
-This method retrieves a list of available genres seed parameter values for recommendations.
 
 =head2 get_available_markets
 
@@ -2693,18 +1465,6 @@ equivalent to GET /v1/shows/{id}
 
 This method retrieves Spotify catalog information for a single show identified by its unique Spotify ID.
 
-=head2 get_several_shows
-
-equivalent to GET /v1/shows
-
-    $spotify->get_several_shows(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ'], 'US');
-
-or
-
-    $spotify->get_several_shows('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ', 'US');
-
-This method retrieves Spotify catalog information for several shows based on their Spotify IDs.
-
 =head2 get_show_episodes
 
 equivalent to GET /v1/shows/{id}/episodes
@@ -2721,18 +1481,6 @@ equivalent to GET /v1/audiobooks/{id}/chapters
 
 This method retrieves the chapters of an audiobook.
 
-=head2 get_several_audiobooks
-
-equivalent to GET /v1/audiobooks
-
-    $spotify->get_several_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ'], 'US');
-
-or
-
-    $spotify->get_several_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ', 'US');
-
-This method retrieves multiple audiobooks based on their Spotify IDs.
-
 =head2 send_delete_request
 
 Internal method used to send DELETE requests to the Spotify API.
@@ -2740,16 +1488,6 @@ Internal method used to send DELETE requests to the Spotify API.
 =head2 send_put_request
 
 Internal method used to send PUT requests to the Spotify API.
-
-=head2 check_users_saved_audiobooks
-
-equivalent to GET /v1/me/audiobooks/contains
-
-    $spotify->check_users_saved_audiobooks(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->check_users_saved_audiobooks('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
 
 =head2 get_users_saved_shows
 
@@ -2759,62 +1497,11 @@ equivalent to GET /v1/me/shows
 
 This method retrieves a list of shows saved in the current Spotify user's library. Optional parameters can be used to limit the number of shows returned.
 
-=head2 save_shows_for_current_user
-
-equivalent to PUT /v1/me/shows
-
-    $spotify->save_shows_for_current_user(['5CfCWKI5pZ28U0uOzXkDHe', '5as3aKmN2k11yfDDDSrvaZ']);
-
-or
-
-    $spotify->save_shows_for_current_user('5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ');
-
-This method saves one or more shows to the current user's library.
-
-=head2 get_categories
-
-equivalent to GET /v1/browse/categories
-
-    $spotify->get_categories(
-        country => 'US',
-        locale => 'en_US',
-        limit => 20,
-        offset => 0
-    );
-
-=head2 get_category
-
-equivalent to GET /v1/browse/categories/{category_id}
-
-    $spotify->get_category('dinner', locale => 'en_US');
-
 =head2 get_chapter
 
 equivalent to GET /v1/chapters/{id}
 
     $spotify->get_chapter('0D5wENdkdwbqlrHoaJ9g29', market => 'US');
-
-=head2 get_several_chapters
-
-equivalent to GET /v1/chapters
-
-    $spotify->get_several_chapters(['0IsXVP0JmcB2adSE338GkK', '3ZXb8FKZGU0EHALYX6uCzU', '0D5wENdkdwbqlrHoaJ9g29'], market => 'US');
-
-or
-
-    $spotify->get_several_chapters('0IsXVP0JmcB2adSE338GkK,3ZXb8FKZGU0EHALYX6uCzU,0D5wENdkdwbqlrHoaJ9g29', market => 'US');
-
-=head2 save_audiobooks_for_current_user
-
-equivalent to PUT /v1/me/audiobooks
-
-    $spotify->save_audiobooks_for_current_user(['18yVqkdbdRvS24c0Ilj2ci', '1HGw3J3NxZO1TP1BTtVhpZ']);
-
-or
-
-    $spotify->save_audiobooks_for_current_user('18yVqkdbdRvS24c0Ilj2ci,1HGw3J3NxZO1TP1BTtVhpZ');
-
-This method saves one or more audiobooks to the current user's library.
 
 =head2 oauth_client_id
 
@@ -2886,10 +1573,10 @@ returns the response type for the last request made, helpful to verify JSON
 pass a callback subroutine to this method that will be run at the end of the
 request prior to die_on_response_error, if enabled
 
-    # $m is the WWW::Mechanize object
+    # $res is the HTTP::Response object
     $spotify->custom_request_handler(
-        sub { my $m = shift;
-            if ($m->status() == 401) {
+        sub { my $res = shift;
+            if ($res->code == 401) {
                 return 1;
             }
         }

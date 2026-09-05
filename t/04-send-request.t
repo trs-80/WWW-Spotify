@@ -8,86 +8,19 @@ use JSON::MaybeXS  qw( encode_json );
 use Test::More;
 use WWW::Spotify ();
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-# Build a minimal mock mechanize object that records the last HTTP verb/URL
-# called and returns a canned HTTP::Response.
-package MockMech;
-
-sub new {
-    my ( $class, %args ) = @_;
-    return bless {
-        status       => $args{status}       // 200,
-        content      => $args{content}      // '{}',
-        content_type => $args{content_type} // 'application/json',
-        headers      => {},
-        last_verb    => undef,
-        last_url     => undef,
-        last_content => undef,
-    }, $class;
-}
-
-sub clone        { return $_[0] }    # _mech calls clone() on ua
-sub add_header   { my ( $self, $k, $v ) = @_; $self->{headers}{$k} = $v }
-sub status       { $_[0]->{status} }
-sub content      { $_[0]->{content} }
-sub content_type { $_[0]->{content_type} }
-sub ct           { $_[0]->{content_type} }
-
-sub get {
-    my ( $self, $url ) = @_;
-    $self->{last_verb} = 'get';
-    $self->{last_url}  = $url;
-}
-
-sub post {
-    my ( $self, $url, %args ) = @_;
-    $self->{last_verb}    = 'post';
-    $self->{last_url}     = $url;
-    $self->{last_content} = $args{Content};
-}
-
-sub put {
-    my ( $self, $url, %args ) = @_;
-    $self->{last_verb}    = 'put';
-    $self->{last_url}     = $url;
-    $self->{last_content} = $args{Content};
-}
-
-sub delete {
-    my ( $self, $url, %args ) = @_;
-    $self->{last_verb}    = 'delete';
-    $self->{last_url}     = $url;
-    $self->{last_content} = $args{Content};
-}
-
-# SpotifyTestable overrides ua so _mech returns our MockMech
-package SpotifyTestable;
-use parent -norequire, 'WWW::Spotify';
-
-sub new {
-    my ( $class, $mock, %args ) = @_;
-    my $self = $class->SUPER::new(%args);
-    $self->{_mock} = $mock;
-    return $self;
-}
-
-sub _mech { return $_[0]->{_mock} }
-
-package main;
+use lib 't/lib';
+use MockUA ();
 
 # ---------------------------------------------------------------------------
 # send_get_request - URL building
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
     );
 
     $s->send_get_request(
@@ -106,11 +39,11 @@ package main;
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
     );
 
     my $full = 'https://api.spotify.com/v1/some/custom/path';
@@ -127,11 +60,11 @@ package main;
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
     );
 
     $s->send_get_request(
@@ -154,11 +87,11 @@ package main;
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 1,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'mytoken',
+        token_expires_at     => time() + 3600,
     );
     $s->token_expires_at( time() + 3600 );    # token is not expired
 
@@ -178,11 +111,11 @@ package main;
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
     );
 
     $s->send_post_request(
@@ -213,10 +146,9 @@ package main;
 # add_items_to_playlist body shape: uris must be a JSON array, position
 # omitted unless given (the API rejects a string uris with "No uris provided")
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -249,28 +181,28 @@ package main;
 
 # ---------------------------------------------------------------------------
 # send_put_request - verb and URL
-# save_shows_for_current_user maps to /v1/me/shows
+# save_library_items maps to /v1/me/library
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_NO_CONTENT );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_NO_CONTENT );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
     );
 
     $s->send_put_request(
         {
-            method => 'save_shows_for_current_user',
-            params => { ids => 'show1' },
+            method => 'save_library_items',
+            params => { uris => 'spotify%3Ashow%3A1' },
         }
     );
 
     is( $mock->{last_verb}, 'put', 'send_put_request uses PUT verb' );
     like(
         $mock->{last_url},
-        qr{/v1/me/shows},
+        qr{/v1/me/library},
         'send_put_request builds correct URL'
     );
 }
@@ -280,17 +212,17 @@ package main;
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
+        token_expires_at     => time() + 3600,
     );
 
     $s->send_delete_request(
         {
-            method => 'remove_user_saved_tracks',
-            params => { ids => 'track1' },
+            method => 'remove_library_items',
+            params => { uris => 'spotify%3Atrack%3A1' },
         }
     );
 
@@ -300,7 +232,7 @@ package main;
     );
     like(
         $mock->{last_url},
-        qr{/v1/me/tracks},
+        qr{/v1/me/library},
         'send_delete_request builds correct URL'
     );
 }
@@ -310,14 +242,14 @@ package main;
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new(
+    my $mock = MockUA->new(
         status       => HTTP_UNAUTHORIZED,
         content_type => 'application/json',
     );
-    my $s = SpotifyTestable->new(
-        $mock,
-        force_client_auth     => 0,
+    my $s = WWW::Spotify->new(
+        ua                    => $mock,
         current_access_token  => 'tok',
+        token_expires_at      => time() + 3600,
         die_on_response_error => 1,
     );
 
@@ -332,14 +264,14 @@ package main;
 }
 
 {
-    my $mock = MockMech->new(
+    my $mock = MockUA->new(
         status       => HTTP_UNAUTHORIZED,
         content_type => 'application/json',
     );
-    my $s = SpotifyTestable->new(
-        $mock,
-        force_client_auth     => 0,
+    my $s = WWW::Spotify->new(
+        ua                    => $mock,
         current_access_token  => 'tok',
+        token_expires_at      => time() + 3600,
         die_on_response_error => 1,
     );
 
@@ -359,10 +291,9 @@ package main;
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -376,52 +307,9 @@ package main;
 }
 
 {
-    my $mock = MockMech->new( status => HTTP_NO_CONTENT );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
-        current_access_token => 'tok',
-        token_expires_at     => time() + 3600,
-    );
-
-    $s->send_put_request(
-        {
-            method => 'save_audiobooks_for_current_user',
-            params => { ids => 'ab1' }
-        }
-    );
-    like(
-        $mock->{last_url}, qr{/v1/me/audiobooks},
-        'save_audiobooks_for_current_user builds correct URL'
-    );
-}
-
-{
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
-        current_access_token => 'tok',
-        token_expires_at     => time() + 3600,
-    );
-
-    $s->send_delete_request(
-        {
-            method => 'remove_users_saved_audiobooks',
-            params => { ids => 'ab1' }
-        }
-    );
-    like(
-        $mock->{last_url}, qr{/v1/me/audiobooks},
-        'remove_users_saved_audiobooks builds correct URL'
-    );
-}
-
-{
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -435,31 +323,9 @@ package main;
 }
 
 {
-    my $mock = MockMech->new( status => HTTP_NO_CONTENT );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
-        current_access_token => 'tok',
-        token_expires_at     => time() + 3600,
-    );
-
-    $s->send_put_request(
-        {
-            method => 'save_shows_for_current_user',
-            params => { ids => 'sh1' }
-        }
-    );
-    like(
-        $mock->{last_url}, qr{/v1/me/shows},
-        'save_shows_for_current_user builds correct URL'
-    );
-}
-
-{
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -474,52 +340,9 @@ package main;
 }
 
 {
-    my $mock = MockMech->new( status => HTTP_NO_CONTENT );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
-        current_access_token => 'tok',
-        token_expires_at     => time() + 3600,
-    );
-
-    $s->send_put_request(
-        {
-            method => 'follow_artists_or_users',
-            params => { type => 'artist', ids => 'id1' }
-        }
-    );
-    like(
-        $mock->{last_url}, qr{/v1/me/following},
-        'follow_artists_or_users builds correct URL'
-    );
-}
-
-{
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
-        current_access_token => 'tok',
-        token_expires_at     => time() + 3600,
-    );
-
-    $s->send_delete_request(
-        {
-            method => 'unfollow_artists_or_users',
-            params => { type => 'artist', ids => 'id1' }
-        }
-    );
-    like(
-        $mock->{last_url}, qr{/v1/me/following},
-        'unfollow_artists_or_users builds correct URL'
-    );
-}
-
-{
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -540,27 +363,9 @@ package main;
 }
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
-        current_access_token => 'tok',
-        token_expires_at     => time() + 3600,
-    );
-
-    $s->send_get_request(
-        { method => 'user_playlist', params => { user_id => 'u1' } } );
-    like(
-        $mock->{last_url}, qr{/v1/users/u1/playlists},
-        'user_playlist builds correct URL'
-    );
-}
-
-{
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -577,9 +382,7 @@ package main;
 }
 
 # ---------------------------------------------------------------------------
-# User-authorized playlist methods must always send the Authorization
-# header, even with force_client_auth=0 (their endpoints reject
-# unauthenticated requests)
+# User-authorized playlist methods send the Authorization header
 # ---------------------------------------------------------------------------
 
 for my $call (
@@ -596,10 +399,9 @@ for my $call (
     [ unfollow_playlist  => sub { $_[0]->unfollow_playlist('pl1') } ],
 ) {
     my ( $name, $invoke ) = @$call;
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'usertok',
         token_expires_at     => time() + 3600,
     );
@@ -607,15 +409,14 @@ for my $call (
     $invoke->($s);
     is(
         $mock->{headers}{Authorization}, 'Bearer usertok',
-        "$name sends Authorization header despite force_client_auth=0"
+        "$name sends Authorization header"
     );
 }
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -633,10 +434,9 @@ for my $call (
 # ---------------------------------------------------------------------------
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -649,17 +449,20 @@ for my $call (
         qr{/v1/me/library\?uris=spotify%3Atrack%3AAAA%2Cspotify%3Aalbum%3ABBB},
         'save_library_items sends escaped uris as query param'
     );
-    is(
-        $mock->{last_content}, '',
+    ok(
+        !defined $mock->{last_content},
         'save_library_items sends no request body'
+    );
+    ok(
+        !exists $mock->{headers}{'Content-Type'},
+        'save_library_items sends no Content-Type header'
     );
 }
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -678,10 +481,9 @@ for my $call (
 }
 
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -697,129 +499,8 @@ for my $call (
 }
 
 # ---------------------------------------------------------------------------
-# Deprecated-endpoint methods warn (once) but still send the request
-# ---------------------------------------------------------------------------
-
-{
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
-        current_access_token => 'tok',
-    );
-
-    my @warnings;
-    local $SIG{__WARN__} = sub { push @warnings, $_[0] };
-
-    $s->send_get_request(
-        { method => 'get_several_chapters', params => { ids => 'c1,c2' } } );
-
-    is( scalar(@warnings), 1, 'deprecated method warns' );
-    like(
-        $warnings[0],
-        qr{get_several_chapters.*removed},
-        'warning names the method and reason'
-    );
-    like(
-        $mock->{last_url}, qr{/v1/chapters},
-        'request is still sent for deprecated method'
-    );
-
-    $s->send_get_request(
-        { method => 'get_several_chapters', params => { ids => 'c1,c2' } } );
-    is(
-        scalar(@warnings), 1,
-        'deprecation warning fires only once per method'
-    );
-}
-
-# ---------------------------------------------------------------------------
 # Token auto-refresh tests
 # ---------------------------------------------------------------------------
-
-# MockMechTokenRefresh: returns a canned token response when post() is called
-# (simulates the Spotify token endpoint), and tracks how many times
-# get_client_credentials was called so we can assert refresh behaviour.
-package MockMechTokenRefresh;
-
-use JSON::MaybeXS qw( encode_json );
-
-sub new {
-    my ( $class, %args ) = @_;
-    return bless {
-        status         => $args{status}       // 200,
-        content        => $args{content}      // '{}',
-        content_type   => $args{content_type} // 'application/json',
-        token_response => $args{token_response},    # optional JSON string
-        headers        => {},
-        last_verb      => undef,
-        last_url       => undef,
-        post_calls     => 0,
-    }, $class;
-}
-
-sub clone        { return $_[0] }
-sub add_header   { my ( $self, $k, $v ) = @_; $self->{headers}{$k} = $v }
-sub status       { $_[0]->{status} }
-sub content_type { $_[0]->{content_type} }
-sub ct           { $_[0]->{content_type} }
-
-sub content {
-    my $self = shift;
-
-    # After a POST (token fetch), return the token response if configured.
-    if ( $self->{last_verb} eq 'post' && $self->{token_response} ) {
-        return $self->{token_response};
-    }
-    return $self->{content};
-}
-
-sub get {
-    my ( $self, $url ) = @_;
-    $self->{last_verb} = 'get';
-    $self->{last_url}  = $url;
-}
-
-sub post {
-    my ( $self, $url, @rest ) = @_;
-    $self->{last_verb} = 'post';
-    $self->{last_url}  = $url;
-    $self->{post_calls}++;
-}
-
-sub put {
-    my ( $self, $url, @rest ) = @_;
-    $self->{last_verb} = 'put';
-    $self->{last_url}  = $url;
-}
-
-sub delete {
-    my ( $self, $url, @rest ) = @_;
-    $self->{last_verb} = 'delete';
-    $self->{last_url}  = $url;
-}
-
-# SpotifyRefreshable: SpotifyTestable variant that uses MockMechTokenRefresh
-package SpotifyRefreshable;
-use parent -norequire, 'WWW::Spotify';
-
-sub new {
-    my ( $class, $mock, %args ) = @_;
-    my $self = $class->SUPER::new(%args);
-    $self->{_mock}              = $mock;
-    $self->{_credentials_calls} = 0;
-    return $self;
-}
-
-sub _mech { return $_[0]->{_mock} }
-
-sub get_client_credentials {
-    my $self = shift;
-    $self->{_credentials_calls}++;
-    return $self->SUPER::get_client_credentials(@_);
-}
-
-package main;
 
 # Test 1: expired token triggers a re-fetch of client credentials
 {
@@ -831,15 +512,15 @@ package main;
         }
     );
 
-    my $mock = MockMechTokenRefresh->new(
+    my $mock = MockUA->new(
         status         => HTTP_OK,
         token_response => $token_json,
     );
 
-    my $s = SpotifyRefreshable->new(
-        $mock,
-        force_client_auth    => 1,
+    my $s = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'old_token',
+        token_expires_at     => time() + 3600,
         oauth_client_id      => 'id',
         oauth_client_secret  => 'secret',
     );
@@ -850,7 +531,7 @@ package main;
     $s->send_get_request( { method => 'album', params => { id => 'X' } } );
 
     is(
-        $s->{_credentials_calls}, 1,
+        $mock->{post_calls}, 1,
         'expired token triggers get_client_credentials'
     );
     is(
@@ -861,12 +542,12 @@ package main;
 
 # Test 2: valid (unexpired) token is NOT re-fetched
 {
-    my $mock = MockMechTokenRefresh->new( status => HTTP_OK );
+    my $mock = MockUA->new( status => HTTP_OK );
 
-    my $s = SpotifyRefreshable->new(
-        $mock,
-        force_client_auth    => 1,
+    my $s = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'valid_token',
+        token_expires_at     => time() + 3600,
         oauth_client_id      => 'id',
         oauth_client_secret  => 'secret',
     );
@@ -877,7 +558,7 @@ package main;
     $s->send_get_request( { method => 'album', params => { id => 'Y' } } );
 
     is(
-        $s->{_credentials_calls}, 0,
+        $mock->{post_calls}, 0,
         'valid token does not trigger get_client_credentials'
     );
     is(
@@ -896,14 +577,13 @@ package main;
         }
     );
 
-    my $mock = MockMechTokenRefresh->new(
+    my $mock = MockUA->new(
         status         => HTTP_OK,
         token_response => $token_json,
     );
 
-    my $s = SpotifyRefreshable->new(
-        $mock,
-        force_client_auth   => 0,
+    my $s = WWW::Spotify->new(
+        ua                  => $mock,
         oauth_client_id     => 'id',
         oauth_client_secret => 'secret',
     );
@@ -925,15 +605,14 @@ package main;
 
 # 1a. A URL on the allowed origin (api.spotify.com) must be sent normally.
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
 
-    $s->query_full_url( 'https://api.spotify.com/v1/me/playlists', 1 );
+    $s->query_full_url('https://api.spotify.com/v1/me/playlists');
 
     is(
         $mock->{last_url},
@@ -949,15 +628,14 @@ package main;
 
 # 1b. A URL on a different host must be rejected (die) when auth would be sent.
 {
-    my $mock = MockMech->new( status => HTTP_OK );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
 
-    eval { $s->query_full_url( 'https://evil.example.com/steal', 1 ); };
+    eval { $s->query_full_url('https://evil.example.com/steal'); };
     like(
         $@, qr/not allowed/i,
         'query_full_url dies for off-origin credentialed URL'
@@ -976,10 +654,9 @@ package main;
             next => 'https://evil.example.com/exfiltrate',
         }
     );
-    my $mock = MockMech->new( status => HTTP_OK, content => $evil_json );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK, content => $evil_json );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -1071,14 +748,13 @@ package main;
 # rate limited, etc.) the caller must get a clear exception, not silent
 # continuation that leads to a Bearer '' request later.
 {
-    my $mock = MockMechTokenRefresh->new(
+    my $mock = MockUA->new(
         status         => HTTP_OK,
         token_response => '{"error":"invalid_client"}',
     );
 
-    my $s = SpotifyRefreshable->new(
-        $mock,
-        force_client_auth   => 0,
+    my $s = WWW::Spotify->new(
+        ua                  => $mock,
         oauth_client_id     => 'id',
         oauth_client_secret => 'wrong_secret',
     );

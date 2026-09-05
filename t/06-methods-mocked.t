@@ -12,50 +12,16 @@ use JSON::MaybeXS qw( encode_json );
 use Test::More;
 use WWW::Spotify ();
 
-package MockMech;
+use lib 't/lib';
+use MockUA ();
 
-sub new {
-    my ( $class, %args ) = @_;
-    return bless {
-        status       => $args{status}       // 200,
-        content      => $args{content}      // '{}',
-        content_type => $args{content_type} // 'application/json',
-        headers      => {},
-        last_url     => undef,
-    }, $class;
-}
-
-sub clone        { return $_[0] }
-sub add_header   { my ( $self, $k, $v ) = @_; $self->{headers}{$k} = $v }
-sub status       { $_[0]->{status} }
-sub content      { $_[0]->{content} }
-sub content_type { $_[0]->{content_type} }
-sub ct           { $_[0]->{content_type} }
-sub get          { my ( $self, $url ) = @_; $self->{last_url} = $url }
-
-package SpotifyTestable;
-use parent -norequire, 'WWW::Spotify';
-
-sub new {
-    my ( $class, $mock, %args ) = @_;
-    my $self = $class->SUPER::new(%args);
-    $self->{_mock} = $mock;
-    return $self;
-}
-
-sub _mech { return $_[0]->{_mock} }
-
-package main;
-
-# suppress the (already-tested) deprecation warnings for removed endpoints
-local $SIG{__WARN__} = sub { };
+use utf8;
 
 sub mocked {
     my %args = @_;
-    my $mock = MockMech->new( status => HTTP_OK, %args );
-    my $s    = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock = MockUA->new( status => HTTP_OK, %args );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
     );
@@ -143,6 +109,7 @@ sub mocked {
         qr{q=tania(?:%20|\+)bowra},
         'search escapes the query term'
     );
+
     like( $mock->{last_url}, qr{type=artist}, 'search passes type' );
     like( $mock->{last_url}, qr{limit=15},    'search appends extras' );
 
@@ -151,86 +118,11 @@ sub mocked {
         'https://img.example/tania.jpg',
         'get() traverses the last result with a JSON path'
     );
-}
 
-# ---------------------------------------------------------------------------
-# Removed/deprecated catalog methods still build their historical URLs
-# ---------------------------------------------------------------------------
-
-{
-    my ( $s, $mock ) = mocked();
-    $s->albums('41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4');
+    $s->search( 'Björk', 'artist' );
     like(
-        $mock->{last_url},
-        qr{/v1/albums\?ids=41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4},
-        'albums (comma string) builds correct URL'
-    );
-
-    $s->albums( [ '41MnTivkwTO3UUJ8DrqEJJ', '6JWc4iAiJ9FjyK0B59ABb4' ] );
-    like(
-        $mock->{last_url},
-        qr{/v1/albums\?ids=41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4},
-        'albums (arrayref) joins ids'
-    );
-}
-
-{
-    my ( $s, $mock ) = mocked();
-    $s->artists('0oSGxfWSnnOXhD2fKuz2Gy,3dBVyJ7JuOMt4GE9607Qin');
-    like(
-        $mock->{last_url}, qr{/v1/artists\?ids=0oSGxfWSnnOXhD2fKuz2Gy},
-        'artists builds correct URL'
-    );
-}
-
-{
-    my ( $s, $mock ) = mocked();
-    $s->tracks( [ '0eGsygTp906u18L0Oimnem', '1lDWb6b6ieDQ2xT7ewTC3G' ] );
-    like(
-        $mock->{last_url},
-        qr{/v1/tracks\?ids=0eGsygTp906u18L0Oimnem,1lDWb6b6ieDQ2xT7ewTC3G},
-        'tracks (arrayref) joins ids'
-    );
-}
-
-{
-    my ( $s, $mock ) = mocked();
-    $s->artist_top_tracks( '43ZHCT0cAZBISjO8DG9PnE', 'SE' );
-    like(
-        $mock->{last_url},
-        qr{/v1/artists/43ZHCT0cAZBISjO8DG9PnE/top-tracks},
-        'artist_top_tracks builds correct URL'
-    );
-    like(
-        $mock->{last_url}, qr{country=SE},
-        'artist_top_tracks passes country'
-    );
-    unlike(
-        $mock->{last_url}, qr{client_auth_required},
-        'internal auth flag does not leak into the query string'
-    );
-    is(
-        $mock->{headers}{Authorization}, 'Bearer tok',
-        'artist_top_tracks sends Authorization header'
-    );
-}
-
-{
-    my ( $s, $mock ) = mocked();
-    $s->artist_related_artists('43ZHCT0cAZBISjO8DG9PnE');
-    like(
-        $mock->{last_url},
-        qr{/v1/artists/43ZHCT0cAZBISjO8DG9PnE/related-artists},
-        'artist_related_artists builds correct URL'
-    );
-}
-
-{
-    my ( $s, $mock ) = mocked();
-    $s->user('glennpmcdonald');
-    like(
-        $mock->{last_url}, qr{/v1/users/glennpmcdonald},
-        'user builds correct URL'
+        $mock->{last_url}, qr{q=Bj%C3%B6rk},
+        'search UTF-8 encodes non-ASCII query text before escaping'
     );
 }
 
@@ -269,22 +161,12 @@ sub mocked {
     for my $call (
         [ 'album',                 sub { $s->album(undef) } ],
         [ 'album (empty string)',  sub { $s->album('') } ],
-        [ 'albums',                sub { $s->albums(undef) } ],
         [ 'artist',                sub { $s->artist(undef) } ],
         [ 'artist (empty string)', sub { $s->artist('') } ],
-        [ 'artists',               sub { $s->artists(undef) } ],
         [ 'artist_albums',         sub { $s->artist_albums(undef) } ],
-        [ 'artist_top_tracks', sub { $s->artist_top_tracks( undef, 'US' ) } ],
-        [
-            'artist_related_artists',
-            sub { $s->artist_related_artists(undef) }
-        ],
-        [ 'track',               sub { $s->track(undef) } ],
-        [ 'tracks',              sub { $s->tracks(undef) } ],
-        [ 'user',                sub { $s->user(undef) } ],
-        [ 'user (empty string)', sub { $s->user('') } ],
-        [ 'get_playlist',        sub { $s->get_playlist(undef) } ],
-        [ 'get_playlist_items',  sub { $s->get_playlist_items(undef) } ],
+        [ 'track',                 sub { $s->track(undef) } ],
+        [ 'get_playlist',          sub { $s->get_playlist(undef) } ],
+        [ 'get_playlist_items',    sub { $s->get_playlist_items(undef) } ],
     ) {
         my ( $label, $code ) = @$call;
         eval { $code->() };
@@ -303,13 +185,12 @@ sub mocked {
 # 4a. Non-JSON response body with auto_json_decode => 1 must give a clear error,
 #     not a raw Cpanel::JSON::XS/JSON::XS parse crash.
 {
-    my $mock = MockMech->new(
+    my $mock = MockUA->new(
         status  => 200,
         content => '<html>Service Unavailable</html>',
     );
-    my $s = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $s = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
         auto_json_decode     => 1,
@@ -326,10 +207,9 @@ sub mocked {
 {
     use JSON::MaybeXS qw( encode_json );
     my $payload = encode_json( { name => 'My Album' } );
-    my $mock    = MockMech->new( status => 200, content => $payload );
-    my $s       = SpotifyTestable->new(
-        $mock,
-        force_client_auth    => 0,
+    my $mock    = MockUA->new( status => 200, content => $payload );
+    my $s       = WWW::Spotify->new(
+        ua                   => $mock,
         current_access_token => 'tok',
         token_expires_at     => time() + 3600,
         auto_json_decode     => 1,

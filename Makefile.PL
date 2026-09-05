@@ -17,32 +17,31 @@ my %WriteMakefileArgs = (
   "MIN_PERL_VERSION" => "5.024",
   "NAME" => "WWW::Spotify",
   "PREREQ_PM" => {
-    "Carp" => 0,
-    "Data::Dumper" => 0,
     "HTTP::Status" => 0,
-    "IO::CaptureOutput" => 0,
     "JSON::MaybeXS" => 0,
     "JSON::Path" => 0,
     "LWP::Protocol::https" => "6.10",
+    "LWP::UserAgent" => 0,
     "MIME::Base64" => 0,
     "Moo" => "2.002004",
     "Types::Standard" => 0,
-    "URI::Escape" => 0,
-    "WWW::Mechanize" => 0
+    "URI::Escape" => 0
   },
   "TEST_REQUIRES" => {
+    "Data::Dumper" => 0,
     "ExtUtils::MakeMaker" => 0,
     "File::Spec" => 0,
     "HTTP::Response" => 0,
-    "LWP::UserAgent" => 0,
     "Test::More" => 0,
     "Test::RequiresInternet" => 0,
     "Try::Tiny" => 0,
+    "lib" => 0,
     "parent" => 0,
     "strict" => 0,
+    "utf8" => 0,
     "warnings" => 0
   },
-  "VERSION" => "0.018",
+  "VERSION" => "1.000",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -50,13 +49,11 @@ my %WriteMakefileArgs = (
 
 
 my %FallbackPrereqs = (
-  "Carp" => 0,
   "Data::Dumper" => 0,
   "ExtUtils::MakeMaker" => 0,
   "File::Spec" => 0,
   "HTTP::Response" => 0,
   "HTTP::Status" => 0,
-  "IO::CaptureOutput" => 0,
   "JSON::MaybeXS" => 0,
   "JSON::Path" => 0,
   "LWP::Protocol::https" => "6.10",
@@ -68,9 +65,10 @@ my %FallbackPrereqs = (
   "Try::Tiny" => 0,
   "Types::Standard" => 0,
   "URI::Escape" => 0,
-  "WWW::Mechanize" => 0,
+  "lib" => 0,
   "parent" => 0,
   "strict" => 0,
+  "utf8" => 0,
   "warnings" => 0
 );
 

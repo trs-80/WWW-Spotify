@@ -41,7 +41,6 @@ my $spotify = WWW::Spotify->new(
     oauth_client_id     => $ENV{SPOTIFY_CLIENT_ID},
     oauth_client_secret => $ENV{SPOTIFY_CLIENT_SECRET},
     oauth_redirect_uri  => $REDIRECT_URI,
-    force_client_auth   => 0,
 );
 
 ensure_user_token($spotify);
