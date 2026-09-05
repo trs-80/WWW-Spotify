@@ -1,4 +1,4 @@
-{{$NEXT}}
+1.000     2026-09-05 10:34:19Z
 
 [BREAKING CHANGES]
 - Remove the 30 methods whose Spotify endpoints were deleted in the
