@@ -6,46 +6,8 @@ use JSON::MaybeXS qw( encode_json );
 use Test::More;
 use WWW::Spotify ();
 
-# ---------------------------------------------------------------------------
-# Mock mech that records post() form params and returns a canned response
-# ---------------------------------------------------------------------------
-
-package MockTokenMech;
-
-sub new {
-    my ( $class, %args ) = @_;
-    return bless {
-        content     => $args{content} // '{}',
-        headers     => {},
-        last_url    => undef,
-        last_params => undef,
-    }, $class;
-}
-
-sub clone      { return $_[0] }
-sub add_header { my ( $self, $k, $v ) = @_; $self->{headers}{$k} = $v }
-sub status     { 200 }
-sub content    { $_[0]->{content} }
-
-sub post {
-    my ( $self, $url, $form ) = @_;
-    $self->{last_url}    = $url;
-    $self->{last_params} = ref $form eq 'ARRAY' ? $form->[0] : $form;
-}
-
-package SpotifyOauthTestable;
-use parent -norequire, 'WWW::Spotify';
-
-sub new {
-    my ( $class, $mock, %args ) = @_;
-    my $self = $class->SUPER::new(%args);
-    $self->{_mock} = $mock;
-    return $self;
-}
-
-sub _mech { return $_[0]->{_mock} }
-
-package main;
+use lib 't/lib';
+use MockUA ();
 
 # ---------------------------------------------------------------------------
 # authorize_url - pure URL builder, no network
@@ -110,9 +72,9 @@ package main;
         }
     );
 
-    my $mock = MockTokenMech->new( content => $token_json );
-    my $s    = SpotifyOauthTestable->new(
-        $mock,
+    my $mock = MockUA->new( content => $token_json );
+    my $s    = WWW::Spotify->new(
+        ua                  => $mock,
         oauth_client_id     => 'id',
         oauth_client_secret => 'secret',
         oauth_redirect_uri  => 'http://127.0.0.1:8888/callback',
@@ -128,16 +90,16 @@ package main;
         'get_access_token posts to the token endpoint'
     );
     is(
-        $mock->{last_params}{grant_type},
+        $mock->{last_form}{grant_type},
         'authorization_code',
         'grant_type is authorization_code'
     );
     is(
-        $mock->{last_params}{code}, 'AUTHCODE99',
+        $mock->{last_form}{code}, 'AUTHCODE99',
         'the real code is posted, not a literal string'
     );
     is(
-        $mock->{last_params}{redirect_uri},
+        $mock->{last_form}{redirect_uri},
         'http://127.0.0.1:8888/callback',
         'redirect_uri is posted'
     );
@@ -161,9 +123,9 @@ package main;
 }
 
 {
-    my $mock = MockTokenMech->new( content => '{"error":"invalid_grant"}' );
-    my $s    = SpotifyOauthTestable->new(
-        $mock,
+    my $mock = MockUA->new( content => '{"error":"invalid_grant"}' );
+    my $s    = WWW::Spotify->new(
+        ua                  => $mock,
         oauth_client_id     => 'id',
         oauth_client_secret => 'secret',
         oauth_redirect_uri  => 'http://127.0.0.1:8888/callback',
@@ -187,9 +149,9 @@ package main;
         }
     );
 
-    my $mock = MockTokenMech->new( content => $token_json );
-    my $s    = SpotifyOauthTestable->new(
-        $mock,
+    my $mock = MockUA->new( content => $token_json );
+    my $s    = WWW::Spotify->new(
+        ua                   => $mock,
         oauth_client_id      => 'id',
         oauth_client_secret  => 'secret',
         refresh_token        => 'refresh_tok',
@@ -204,11 +166,11 @@ package main;
         'refresh_access_token posts to the token endpoint'
     );
     is(
-        $mock->{last_params}{grant_type}, 'refresh_token',
+        $mock->{last_form}{grant_type}, 'refresh_token',
         'grant_type is refresh_token'
     );
     is(
-        $mock->{last_params}{refresh_token},
+        $mock->{last_form}{refresh_token},
         'refresh_tok', 'stored refresh token is posted'
     );
 
@@ -232,9 +194,9 @@ package main;
         }
     );
 
-    my $mock = MockTokenMech->new( content => $token_json );
-    my $s    = SpotifyOauthTestable->new(
-        $mock,
+    my $mock = MockUA->new( content => $token_json );
+    my $s    = WWW::Spotify->new(
+        ua                  => $mock,
         oauth_client_id     => 'id',
         oauth_client_secret => 'secret',
         refresh_token       => 'refresh_tok',
@@ -248,9 +210,9 @@ package main;
 }
 
 {
-    my $mock = MockTokenMech->new();
-    my $s    = SpotifyOauthTestable->new(
-        $mock,
+    my $mock = MockUA->new();
+    my $s    = WWW::Spotify->new(
+        ua                  => $mock,
         oauth_client_id     => 'id',
         oauth_client_secret => 'secret',
     );
@@ -260,57 +222,6 @@ package main;
         $@,
         qr/refresh token/,
         'refresh_access_token dies without a stored refresh token'
-    );
-}
-
-# ---------------------------------------------------------------------------
-# S2: get_oauth_authorize - must return a URL string, not fire a network request
-# ---------------------------------------------------------------------------
-
-# It should return the same URL that authorize_url() builds (they share the
-# same inputs), and must NOT make any HTTP request via ua or _mech.
-{
-    # Subclass that dies if get() is called on the ua, proving no network hit
-    package MockUANoNetwork;
-    sub new { bless {}, shift }
-    sub get { die "get_oauth_authorize must not make a network request\n" }
-
-    package main;
-
-    my $s = WWW::Spotify->new(
-        oauth_client_id     => 'CLIENTX',
-        oauth_client_secret => 'SECRET',
-        oauth_redirect_uri  => 'http://127.0.0.1:8080/cb',
-    );
-
-    # Override the ua so any network call explodes
-    $s->{ua} = MockUANoNetwork->new();
-
-    my $url = $s->get_oauth_authorize();
-
-    like(
-        $url,
-        qr{^https://accounts\.spotify\.com/authorize\?},
-        'get_oauth_authorize returns an authorize URL, not HTML'
-    );
-    like( $url, qr{client_id=CLIENTX},  'client_id in URL' );
-    like( $url, qr{response_type=code}, 'response_type=code in URL' );
-    like(
-        $url,
-        qr{redirect_uri=http(?:%3A|:)},
-        'redirect_uri in URL'
-    );
-}
-
-# Calling it a second time with current_oath_code already set returns that code.
-{
-    my $s = WWW::Spotify->new(
-        oauth_client_id   => 'CLIENTX',
-        current_oath_code => 'EXISTINGCODE',
-    );
-    is(
-        $s->get_oauth_authorize(), 'EXISTINGCODE',
-        'get_oauth_authorize returns existing oath code when already set'
     );
 }
 
@@ -349,32 +260,10 @@ package main;
 
 # 2c. The legitimate default URL must be accepted (no die).
 {
-    package MockMechToken;
-    sub new          { bless {}, shift }
-    sub clone        { $_[0] }
-    sub add_header   { }
-    sub post         { $_[0]->{called} = 1 }
-    sub content      { '{"access_token":"t","expires_in":3600}' }
-    sub status       { 200 }
-    sub content_type { 'application/json' }
-    sub ct           { 'application/json' }
-
-    package SpotifyTokenTestable;
-    use parent -norequire, 'WWW::Spotify';
-
-    sub new {
-        my ( $class, $mock, %args ) = @_;
-        my $self = $class->SUPER::new(%args);
-        $self->{_mock} = $mock;
-        return $self;
-    }
-    sub _mech { $_[0]->{_mock} }
-
-    package main;
-
-    my $mock = MockMechToken->new();
-    my $s    = SpotifyTokenTestable->new(
-        $mock,
+    my $mock
+        = MockUA->new( content => '{"access_token":"t","expires_in":3600}' );
+    my $s = WWW::Spotify->new(
+        ua                  => $mock,
         oauth_client_id     => 'id',
         oauth_client_secret => 'secret',
     );

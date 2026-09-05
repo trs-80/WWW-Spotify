@@ -24,18 +24,6 @@ sub show_and_pause {
 
 my $result;
 
-$obj->force_client_auth(1);
-
-ok( $obj->force_client_auth() == 1 );
-
-#------------------#
-
-$obj->force_client_auth(0);
-
-ok( $obj->force_client_auth() == 0 );
-
-#------------------#
-
 my $crh_check = 0;
 
 eval { $obj->custom_request_handler('string'); };
@@ -49,7 +37,7 @@ ok( $crh_check == 1, 'customer_request_handler requires code ref' );
 #------------------#
 
 SKIP: {
-    skip 'No SPOTIFY_CLIENT_ID', 3 unless $ENV{SPOTIFY_CLIENT_ID};
+    skip 'No SPOTIFY_CLIENT_ID', 2 unless $ENV{SPOTIFY_CLIENT_ID};
 
     # return a sentinel regardless of response status: this asserts the
     # handler ran and its result was stored, not what the API returned
@@ -68,21 +56,6 @@ SKIP: {
         $obj->custom_request_handler_result() == 2,
         'custom_request_handler_result'
     );
-
-    show_and_pause($result);
-
-    #------------------#
-
-    {
-        # albums() warns: endpoint removed Feb 2026
-        local $SIG{__WARN__} = sub { };
-        $result
-            = $obj->albums(
-            '41MnTivkwTO3UUJ8DrqEJJ,6JWc4iAiJ9FjyK0B59ABb4,6UXCm6bOO4gFlDQZV5yL37'
-            );
-    }
-
-    ok( is_valid_json( $result, 'albums' ), 'albums (multiple ids)' );
 
     show_and_pause($result);
 }

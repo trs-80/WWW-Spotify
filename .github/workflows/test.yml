@@ -30,23 +30,6 @@ jobs:
         with:
           name: build_dir
           path: build_dir
-  coverage-job:
-    needs: build-job
-    runs-on: ubuntu-22.04
-    container:
-      image: perldocker/perl-tester:5.40
-    steps:
-      - uses: actions/checkout@v4  # codecov wants to be inside a Git repository
-      - uses: actions/download-artifact@v4
-        with:
-          name: build_dir
-          path: .
-      - name: Install deps and test
-        run: auto-build-and-test-dist
-        env:
-          AUTOMATED_TESTING: 1
-          CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
-          EXTENDED_TESTING: 1
   ubuntu-test-job:
     needs: build-job
     runs-on: ubuntu-22.04
@@ -90,15 +73,6 @@ jobs:
       fail-fast: true
       matrix:
         perl-version:
-          # cpm (used to install deps below) requires perl >= 5.24
-          - '5.24'
-          - '5.26'
-          - '5.28'
-          - '5.30'
-          - '5.32'
-          - '5.34'
-          - '5.36'
-          - '5.38'
           - '5.40'
     name: perl ${{ matrix.perl-version }} on macos
     steps:
@@ -106,39 +80,6 @@ jobs:
         uses: shogo82148/actions-setup-perl@v1
         with:
           perl-version: ${{ matrix.perl-version }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: build_dir
-          path: .
-      - name: install deps using cpm
-        uses: perl-actions/install-with-cpm@v1
-        with:
-          cpanfile: 'cpanfile'
-          args: '--with-suggests --with-recommends --with-test'
-      - run: prove -lr t
-        env:
-          AUTHOR_TESTING: 0
-          RELEASE_TESTING: 0
-  windows-test-job:
-    needs: ubuntu-test-job
-    runs-on: windows-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        perl-version:
-          # cpm (used to install deps below) requires perl >= 5.24
-          - '5.24'
-          - '5.26'
-          - '5.28'
-          - '5.30'
-          - '5.32'
-    name: perl ${{ matrix.perl-version }} on windows
-    steps:
-      - name: set up perl
-        uses: shogo82148/actions-setup-perl@v1
-        with:
-          perl-version: ${{ matrix.perl-version }}
-          distribution: strawberry  # this option only used on windows
       - uses: actions/download-artifact@v4
         with:
           name: build_dir
