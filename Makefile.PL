@@ -38,6 +38,7 @@ my %WriteMakefileArgs = (
     "lib" => 0,
     "parent" => 0,
     "strict" => 0,
+    "utf8" => 0,
     "warnings" => 0
   },
   "VERSION" => "1.000",
@@ -67,6 +68,7 @@ my %FallbackPrereqs = (
   "lib" => 0,
   "parent" => 0,
   "strict" => 0,
+  "utf8" => 0,
   "warnings" => 0
 );
 

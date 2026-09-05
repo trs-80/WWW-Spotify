@@ -192,6 +192,9 @@ equivalent to /v1/artists/{id}/albums
 
 equivalent to /v1/search?type=album (etc)
 
+The query and any extras are UTF-8 encoded before escaping, so pass
+character strings (decoded text), not UTF-8 bytes.
+
     $spotify->search(
                         'tania bowra' ,
                         'artist' ,

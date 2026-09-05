@@ -1,7 +1,7 @@
 {{$NEXT}}
 
 [BREAKING CHANGES]
-- Remove the 29 methods whose Spotify endpoints were deleted in the
+- Remove the 30 methods whose Spotify endpoints were deleted in the
   November 2024 and February 2026 API changes, along with the
   once-per-process deprecation warning. Replacements:
     albums, artists, tracks, get_several_shows, get_several_audiobooks,
@@ -73,24 +73,6 @@
 0.015     2026-08-30 02:00:23Z
 
 [BREAKING CHANGES]
-- Remove the 29 methods whose Spotify endpoints were deleted in the
-  November 2024 and February 2026 API changes, along with the
-  once-per-process deprecation warning. Replacements:
-    albums, artists, tracks, get_several_shows, get_several_audiobooks,
-      get_several_chapters -> call album/artist/track/get_show/
-      get_audiobook/get_chapter per id
-    remove_user_saved_tracks, save_shows_for_current_user,
-      save_audiobooks_for_current_user, remove_users_saved_audiobooks,
-      follow_artists_or_users, unfollow_artists_or_users
-      -> save_library_items / remove_library_items
-    check_users_saved_tracks, check_users_saved_shows,
-      check_users_saved_audiobooks, check_if_user_follows_artists_or_users,
-      check_if_user_follows_playlist -> check_library_items
-    get_track_audio_features, get_several_tracks_audio_features,
-      get_track_audio_analysis, get_recommendations,
-      get_available_genre_seeds, browse_featured_playlists,
-      browse_new_releases, get_categories, get_category,
-      artist_top_tracks, artist_related_artists, user -> no replacement
 - create_playlist() drops the user_id argument; it now takes
   ($name, $public, $description) and posts to /v1/me/playlists
   (the old /v1/users/{user_id}/playlists endpoint returns 403)

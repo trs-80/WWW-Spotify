@@ -449,9 +449,13 @@ for my $call (
         qr{/v1/me/library\?uris=spotify%3Atrack%3AAAA%2Cspotify%3Aalbum%3ABBB},
         'save_library_items sends escaped uris as query param'
     );
-    is(
-        $mock->{last_content}, '',
+    ok(
+        !defined $mock->{last_content},
         'save_library_items sends no request body'
+    );
+    ok(
+        !exists $mock->{headers}{'Content-Type'},
+        'save_library_items sends no Content-Type header'
     );
 }
 

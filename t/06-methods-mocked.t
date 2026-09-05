@@ -15,6 +15,8 @@ use WWW::Spotify ();
 use lib 't/lib';
 use MockUA ();
 
+use utf8;
+
 sub mocked {
     my %args = @_;
     my $mock = MockUA->new( status => HTTP_OK, %args );
@@ -107,6 +109,7 @@ sub mocked {
         qr{q=tania(?:%20|\+)bowra},
         'search escapes the query term'
     );
+
     like( $mock->{last_url}, qr{type=artist}, 'search passes type' );
     like( $mock->{last_url}, qr{limit=15},    'search appends extras' );
 
@@ -114,6 +117,12 @@ sub mocked {
         $s->get('artists.items[0].images[0].url'),
         'https://img.example/tania.jpg',
         'get() traverses the last result with a JSON path'
+    );
+
+    $s->search( 'Björk', 'artist' );
+    like(
+        $mock->{last_url}, qr{q=Bj%C3%B6rk},
+        'search UTF-8 encodes non-ASCII query text before escaping'
     );
 }
 

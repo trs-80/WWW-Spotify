@@ -9,7 +9,7 @@ use JSON::MaybeXS   qw( decode_json encode_json );
 use MIME::Base64    qw( encode_base64 );
 use Types::Standard qw( Bool InstanceOf Int Str CodeRef );
 use HTTP::Status    qw( HTTP_OK is_success );
-use URI::Escape     qw( uri_escape );
+use URI::Escape     qw( uri_escape uri_escape_utf8 );
 use LWP::UserAgent  ();
 
 has 'oauth_authorize_url' => (
@@ -458,7 +458,7 @@ sub _send_body_request {
     $self->last_error(q{});
 
     my ( $url, $body_params ) = $self->_build_url($attributes);
-    my $body = %{$body_params} ? encode_json($body_params) : '';
+    my $body = %{$body_params} ? encode_json($body_params) : undef;
     my $res  = $self->_send_request( $verb, $url, $attributes, $body );
 
     if ( !is_success( $self->response_status() ) ) {
@@ -492,7 +492,8 @@ sub send_get_request {
         my @tmp = ();
 
         foreach my $key ( keys %{ $attributes->{extras} } ) {
-            push @tmp, "$key=" . uri_escape( $attributes->{extras}{$key} );
+            push @tmp,
+                "$key=" . uri_escape_utf8( $attributes->{extras}{$key} );
         }
         $uri_params = join( '&', @tmp );
     }
@@ -849,8 +850,8 @@ sub search {
         {
             method => 'search',
             params => {
-                q    => uri_escape($q),
-                type => uri_escape($type),
+                q    => uri_escape_utf8($q),
+                type => uri_escape_utf8($type),
             },
             extras => $extras,
         }
@@ -1331,6 +1332,9 @@ equivalent to /v1/artists/{id}/albums
 =head2 search
 
 equivalent to /v1/search?type=album (etc)
+
+The query and any extras are UTF-8 encoded before escaping, so pass
+character strings (decoded text), not UTF-8 bytes.
 
     $spotify->search(
                         'tania bowra' ,
