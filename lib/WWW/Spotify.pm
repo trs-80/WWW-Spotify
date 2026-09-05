@@ -2,7 +2,7 @@ package WWW::Spotify;
 
 use Moo 2.002004;
 
-our $VERSION = '1.000';
+our $VERSION = '1.001';
 
 use JSON::Path      ();
 use JSON::MaybeXS   qw( decode_json encode_json );
